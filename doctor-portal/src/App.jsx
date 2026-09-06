@@ -1603,7 +1603,7 @@ export default function App() {
         localStorage.setItem('doc_user', JSON.stringify(dummyUser));
         return;
       }
-      setLoginError('Error connecting to backend server. Use doctor@neuroharmony.in / doctor123 to log in.');
+      setLoginError('Error connecting to backend server. Please check your network and try again.');
       console.error(err);
     } finally {
       setLoginLoading(false);
@@ -1814,23 +1814,6 @@ export default function App() {
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loginLoading}>
               {loginLoading ? 'Authenticating...' : 'Sign In'}
             </button>
-
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={() => {
-                setEmail('doctor@neuroharmony.in');
-                setPassword('doctor123');
-              }}
-              style={{ width: '100%', fontSize: '0.8rem', padding: '0.45rem' }}
-            >
-              ⚡ Fill Doctor Credentials
-            </button>
-
-            <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem', backgroundColor: '#f8fafc', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-              <strong>Email:</strong> doctor@neuroharmony.in<br/>
-              <strong>Password:</strong> doctor123
-            </div>
           </form>
         </div>
       </div>
