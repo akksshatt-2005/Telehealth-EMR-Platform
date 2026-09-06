@@ -4192,7 +4192,7 @@ export default function App() {
               )}
 
                 {/* Printable Preview Sheet Box */}
-                <div className="print-preview-container-wrapper" style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#cbd5e1', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', border: '1px solid var(--neutral-border)' }}>
+                <div className="print-preview-container-wrapper" style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)' }}>
                   
                   {/* Printable Page Sheet */}
                   <div 
@@ -4205,8 +4205,9 @@ export default function App() {
                       paddingLeft: `${offlineLayout.marginSize}px`,
                       paddingRight: `${offlineLayout.marginSize}px`,
                       fontSize: `${offlineLayout.fontSize}px`,
-                      backgroundColor: '#fff',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
