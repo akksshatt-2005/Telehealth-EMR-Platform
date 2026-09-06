@@ -1007,6 +1007,98 @@ export default function App() {
     }
   };
 
+  // Dedicated single-page isolated prescription printer
+  const handlePrintPrescription = async () => {
+    const success = await saveOfflinePrescription();
+    if (!success) return;
+
+    const printElem = document.querySelector('.printable-prescription-preview');
+    if (!printElem) {
+      window.print();
+      return;
+    }
+
+    // Remove any previous temporary print iframe
+    const oldIframe = document.getElementById('print-prescription-frame');
+    if (oldIframe) {
+      oldIframe.remove();
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'print-prescription-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Prescription - ${offlineForm.patientName || 'Patient'}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Cinzel:wght@500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            *, *::before, *::after {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100%;
+              height: 100%;
+              background: #ffffff;
+              overflow: hidden;
+              font-family: '${offlineLayout.fontFamily || 'Plus Jakarta Sans'}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .printable-prescription-preview {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-height: 100vh !important;
+              height: 100vh !important;
+              max-height: 100vh !important;
+              box-sizing: border-box !important;
+              box-shadow: none !important;
+              border: none !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              page-break-inside: avoid !important;
+              page-break-before: avoid !important;
+              page-break-after: avoid !important;
+              break-inside: avoid !important;
+              break-before: avoid !important;
+              break-after: avoid !important;
+              overflow: hidden !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${printElem.outerHTML}
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    // Give browser brief tick to parse fonts and signature images before invoking print dialog
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }, 250);
+  };
+
   // Delete offline prescription
   const deleteOfflinePrescription = async (rxId) => {
     if (!token) return;
@@ -3777,14 +3869,7 @@ export default function App() {
                 <button 
                   type="button" 
                   className="btn btn-primary" 
-                  onClick={async () => {
-                    const success = await saveOfflinePrescription();
-                    if (success) {
-                      setTimeout(() => {
-                        window.print();
-                      }, 100);
-                    }
-                  }}
+                  onClick={handlePrintPrescription}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
                 >
                   🖨️ Print Prescription
