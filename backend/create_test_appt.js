@@ -14,17 +14,17 @@ async function main() {
   }
   console.log(`Using Doctor: ${doctor.user.name}`);
 
-  // 2. Get or Create Patient (Akshat Srivastava, 8090589401)
+  // 2. Get or Create Patient (Demo Patient, 9999999999)
   let patient = await prisma.user.findFirst({
-    where: { phone: '8090589401' }
+    where: { phone: '9999999999' }
   });
   if (!patient) {
     patient = await prisma.user.create({
       data: {
-        name: 'Akshat Srivastava',
-        phone: '8090589401',
+        name: 'Demo Patient',
+        phone: '9999999999',
         role: 'PATIENT',
-        email: 'akshat@example.com'
+        email: 'demo.patient@example.com'
       }
     });
   }
@@ -75,7 +75,7 @@ async function main() {
       slotTime: '07:30 PM',
       patientName: patient.name,
       patientAge: 25,
-      patientEmail: patient.email || 'akshat@example.com',
+      patientEmail: patient.email || 'demo.patient@example.com',
       patientPhone: patient.phone,
       symptoms: 'Experiencing minor sleep anxiety and headache.',
       status: 'SCHEDULED',
