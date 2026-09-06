@@ -3,18 +3,53 @@ node_modules/
 dist/
 build/
 .env
+.env.*
+!.env.example
 
-# Local Databases and binaries
+# Local Databases, Binaries & Dumps
 pgsql/
 pgsql_data/
 pgsql_temp/
 redis/
 *.zip
+*.tar.gz
+*.tgz
 dump.rdb
 
-# OS files
+# Operating System & IDE files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+.vscode/
+.idea/
 
-# App uploads
+# App uploads and logs
 backend/uploads/
+uploads/
+*.log
+sms_log.txt
+npm-debug.log*
+yarn-debug.log*
+
+# Personal documents, spreadsheets & scratch files at root
+/*.pdf
+/*.xlsx
+/*.xls
+/*.csv
+*resume*
+*Resume*
+*chat_history*
+*.tmp
+*.bak
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
