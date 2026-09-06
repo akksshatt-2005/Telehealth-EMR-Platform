@@ -722,25 +722,49 @@ input:focus, textarea:focus, select:focus {
 
 @media print {
   @page {
-    size: portrait;
+    size: A4 portrait;
     margin: 0 !important;
   }
+
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html,
   body {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: none !important;
-    background-color: #fff !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
   /* Hide the rest of the application layout panels */
   .no-print,
   header,
   nav,
-  form {
+  aside,
+  form,
+  button,
+  .quick-lookup-dropdown,
+  .analytics-modal-overlay,
+  .modal-overlay {
     display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
   }
 
-  /* Reset all parent container layouts to be simple transparent blocks */
+  /* Reset all parent container layouts to be simple zero-margin transparent blocks */
   #root,
   main,
   .offline-rx-workspace,
@@ -751,31 +775,43 @@ input:focus, textarea:focus, select:focus {
     float: none !important;
     position: static !important;
     width: 100% !important;
-    height: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
+    overflow: visible !important;
   }
 
-  /* Force the prescription card itself to be exactly 1 portrait page height */
+  /* Force the prescription card itself to be exactly 1 portrait page */
   .printable-prescription-preview {
-    position: absolute !important;
-    left: 50% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    position: relative !important;
+    left: 0 !important;
     top: 0 !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
+    height: 100% !important;
+    max-height: 296mm !important;
+    margin: 0 auto !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     border: none !important;
-    background-color: #fff !important;
+    background-color: #ffffff !important;
     page-break-inside: avoid !important;
     page-break-before: avoid !important;
     page-break-after: avoid !important;
+    break-inside: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
