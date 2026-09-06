@@ -15,35 +15,43 @@
 ## 🏛️ System Architecture
 
 ```mermaid
-graph TD
-    subgraph Clients
-        DP["🩺 Doctor Portal (React 19 + Vite)"]
-        PP["🧑‍⚕️ Patient Portal (React 19 + Vite)"]
+flowchart TB
+    subgraph Clients["🖥️ Client Applications"]
+        DP["🩺 Doctor Portal<br/>(React 19 + Vite)"]
+        PP["🧑‍⚕️ Patient Portal<br/>(React 19 + Vite)"]
     end
 
-    subgraph Backend Services ["⚙️ Node.js / Express API"]
-        AUTH["Auth & Session Controller"]
+    subgraph Core["⚙️ Backend Core (Node.js + Express)"]
+        GATEWAY["API Gateway & JWT Auth Middleware"]
         SLOT["Atomic Slot & Booking Engine"]
-        RX["Prescription & EMR Generator (PDFKit)"]
-        ANALYTICS["Clinical Research & Analytics"]
-        SOCKET["Socket.IO Live Hub"]
+        RX["EMR & PDFKit Rx Generator"]
+        ANALYTICS["Clinical Analytics Engine"]
+        SOCKET["Socket.IO Live Gateway"]
     end
 
-    subgraph Infrastructure
-        DB[("PostgreSQL / Supabase")]
-        REDIS[("Redis Cache & Lock")]
-        JITSI["Jitsi Meet WebRTC Video"]
+    subgraph Infra["🗄️ Infrastructure & Integrations"]
+        DB[("PostgreSQL / Supabase (Prisma)")]
+        REDIS[("Redis Cache & Locks")]
         PAY["Razorpay Payment Gateway"]
+        JITSI["Jitsi Meet WebRTC Video"]
         MAIL["Resend / Nodemailer Engine"]
     end
 
-    DP <-->|REST API + WebSockets| Backend Services
-    PP <-->|REST API + WebSockets| Backend Services
-    Backend Services <--> DB
-    Backend Services <--> REDIS
-    Backend Services <--> JITSI
-    Backend Services <--> PAY
-    Backend Services <--> MAIL
+    DP -->|"REST / WebSockets"| GATEWAY
+    PP -->|"REST / WebSockets"| GATEWAY
+
+    GATEWAY --> SLOT
+    GATEWAY --> RX
+    GATEWAY --> ANALYTICS
+    GATEWAY --> SOCKET
+
+    SLOT --> DB
+    SLOT --> REDIS
+    SLOT --> PAY
+    RX --> DB
+    RX --> MAIL
+    ANALYTICS --> DB
+    SOCKET --> JITSI
 ```
 
 ---
