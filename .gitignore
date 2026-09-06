@@ -6,6 +6,17 @@ build/
 .env.*
 !.env.example
 
+# Security, Certificates & Private Keys
+*.pk
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.cer
+*.pub
+jitsi_private_key*
+
 # Local Databases, Binaries & Dumps
 pgsql/
 pgsql_data/
@@ -32,6 +43,7 @@ backend/uploads/
 uploads/
 *.log
 sms_log.txt
+backend/sms_log.txt
 npm-debug.log*
 yarn-debug.log*
 
