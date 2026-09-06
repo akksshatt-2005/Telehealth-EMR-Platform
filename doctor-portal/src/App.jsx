@@ -1060,14 +1060,21 @@ export default function App() {
     });
     setEditingOfflineMedIndex(null);
     setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
-    setOfflineLayout({
+    setOfflineLayout(prev => ({
+      ...prev,
       pageWidth: rx.pageWidth || 800,
       pageHeight: rx.pageHeight || 1120,
       fontSize: rx.fontSize || 13,
       marginSize: rx.marginSize || 40,
       rowSpacing: rx.rowSpacing || 12,
-      useLetterhead: rx.useLetterhead !== undefined ? rx.useLetterhead : false
-    });
+      useLetterhead: rx.useLetterhead !== undefined ? rx.useLetterhead : false,
+      showSignature: rx.showSignature !== undefined ? rx.showSignature : (localStorage.getItem('showSignatureOffline') !== 'false'),
+      signatureSize: rx.signatureSize || parseInt(localStorage.getItem('signatureSizeOffline')) || 220,
+      signaturePosition: rx.signaturePosition || localStorage.getItem('signaturePositionOffline') || 'inline',
+      signatureXOffset: rx.signatureXOffset !== undefined ? rx.signatureXOffset : (parseInt(localStorage.getItem('signatureXOffsetOffline')) || 0),
+      signatureYOffset: rx.signatureYOffset !== undefined ? rx.signatureYOffset : (parseInt(localStorage.getItem('signatureYOffsetOffline')) || 0),
+      fontFamily: rx.fontFamily || localStorage.getItem('fontFamilyOffline') || 'Plus Jakarta Sans'
+    }));
   };
 
   // Reset/Create fresh offline prescription template
@@ -1094,14 +1101,21 @@ export default function App() {
       followUpDate: ''
     });
     setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
-    setOfflineLayout({
+    setOfflineLayout(prev => ({
+      ...prev,
       pageWidth: 800,
       pageHeight: 1120,
       fontSize: 13,
       marginSize: 40,
       rowSpacing: 12,
-      useLetterhead: localStorage.getItem('useLetterheadOffline') === 'true'
-    });
+      useLetterhead: localStorage.getItem('useLetterheadOffline') === 'true',
+      showSignature: localStorage.getItem('showSignatureOffline') !== 'false',
+      signatureSize: parseInt(localStorage.getItem('signatureSizeOffline')) || 220,
+      signaturePosition: localStorage.getItem('signaturePositionOffline') || 'inline',
+      signatureXOffset: parseInt(localStorage.getItem('signatureXOffsetOffline')) || 0,
+      signatureYOffset: parseInt(localStorage.getItem('signatureYOffsetOffline')) || 0,
+      fontFamily: localStorage.getItem('fontFamilyOffline') || 'Plus Jakarta Sans'
+    }));
     fetchNextReferenceId(true);
   };
 

@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
 import { notifyAppointmentBooking, sendEmail, sendSms } from '../services/notificationService.js';
 import { getStorageProvider } from '../services/storageService.js';
@@ -658,8 +659,17 @@ export async function createPrescription(req, res, next) {
       const finalX = 50 + offsetX;
       const finalY = sigY + offsetY;
 
-      const signaturePath = path.resolve('assets/signature.png');
-      if (fs.existsSync(signaturePath)) {
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      const possibleSigPaths = [
+        path.resolve(currentDir, '../assets/signature.png'),
+        path.resolve(process.cwd(), 'assets/signature.png'),
+        path.resolve(process.cwd(), 'backend/assets/signature.png'),
+        path.resolve(process.cwd(), '../backend/assets/signature.png'),
+        path.resolve(process.cwd(), 'doctor-portal/public/signature.png'),
+        path.resolve(process.cwd(), 'patient-portal/public/signature.png')
+      ];
+      const signaturePath = possibleSigPaths.find(p => fs.existsSync(p));
+      if (signaturePath) {
         // Draw signature image (entire logo as shown in attached photo)
         doc.image(signaturePath, finalX, finalY, { width: sigWidth });
       } else {
