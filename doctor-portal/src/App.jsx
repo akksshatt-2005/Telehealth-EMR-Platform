@@ -2240,7 +2240,7 @@ export default function App() {
 
   // CORE DASHBOARD
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       
       {/* Top Header */}
       <header className="no-print" style={{ backgroundColor: 'var(--white)', borderBottom: '1px solid var(--neutral-border)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignSelf: 'stretch', alignItems: 'center', boxShadow: 'var(--shadow-sm)' }}>

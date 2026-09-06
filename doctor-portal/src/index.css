@@ -8,7 +8,7 @@
   --neutral-dark: #0f172a;
   --neutral-light: #f8fafc;
   --neutral-body: #64748b;
-  --neutral-border: #cbd5e1;
+  --neutral-border: #e2e8f0;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -24,7 +24,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-family);
-  background-color: #f1f5f9;
+  background-color: #f8fafc;
   color: var(--neutral-dark);
   -webkit-font-smoothing: antialiased;
 }
@@ -118,13 +118,12 @@ input:focus, textarea:focus, select:focus {
   cursor: not-allowed;
 }
 
-/* Glassmorphism containers */
+/* Clean Crisp Card Panels */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--white);
+  border: 1px solid var(--neutral-border);
   border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Dynamic Live Badges */
