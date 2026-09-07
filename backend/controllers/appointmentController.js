@@ -509,7 +509,7 @@ export async function createPrescription(req, res, next) {
     const doc = new PDFDocument({
       size: 'A4',
       margins: useLetterhead
-        ? { top: 198, bottom: 126, left: 50, right: 50 }
+        ? { top: 255, bottom: 165, left: 50, right: 50 }
         : { top: 50, bottom: 50, left: 50, right: 50 }
     });
     const writeStream = fs.createWriteStream(pdfPath);
@@ -531,7 +531,7 @@ export async function createPrescription(req, res, next) {
       doc.strokeColor('#0d9488').lineWidth(1.5).moveTo(50, 120).lineTo(545, 120).stroke();
     }
 
-    const startY = useLetterhead ? 198 : 136;
+    const startY = useLetterhead ? 255 : 136;
     const patientMetaBoxY = startY + 12;
 
     // 2. Structured Patient Information Grid
@@ -644,10 +644,10 @@ export async function createPrescription(req, res, next) {
 
       let sigY;
       if (sigPos === 'bottom') {
-        sigY = useLetterhead ? (842 - 126 - sigHeight - 10) : (765 - sigHeight - 10);
+        sigY = useLetterhead ? (842 - 165 - sigHeight - 10) : (765 - sigHeight - 10);
       } else {
         sigY = currentY + 15;
-        const maxAllowedY = useLetterhead ? (842 - 126 - sigHeight) : (765 - sigHeight);
+        const maxAllowedY = useLetterhead ? (842 - 165 - sigHeight) : (765 - sigHeight);
         if (sigY > maxAllowedY) {
           sigY = maxAllowedY;
         }

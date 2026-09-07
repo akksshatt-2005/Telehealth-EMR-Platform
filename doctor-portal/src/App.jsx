@@ -258,6 +258,8 @@ export default function App() {
     marginSize: 40,   // px
     rowSpacing: 12,    // px
     useLetterhead: localStorage.getItem('useLetterheadOffline') === 'true',
+    letterheadTopMargin: parseInt(localStorage.getItem('letterheadTopMarginOffline')) || 340,
+    letterheadBottomMargin: parseInt(localStorage.getItem('letterheadBottomMarginOffline')) || 220,
     showSignature: localStorage.getItem('showSignatureOffline') !== 'false',
     signatureSize: parseInt(localStorage.getItem('signatureSizeOffline')) || 220,
     signaturePosition: localStorage.getItem('signaturePositionOffline') || 'inline',
@@ -1160,6 +1162,8 @@ export default function App() {
       marginSize: rx.marginSize || 40,
       rowSpacing: rx.rowSpacing || 12,
       useLetterhead: rx.useLetterhead !== undefined ? rx.useLetterhead : false,
+      letterheadTopMargin: rx.letterheadTopMargin || parseInt(localStorage.getItem('letterheadTopMarginOffline')) || 340,
+      letterheadBottomMargin: rx.letterheadBottomMargin || parseInt(localStorage.getItem('letterheadBottomMarginOffline')) || 220,
       showSignature: rx.showSignature !== undefined ? rx.showSignature : (localStorage.getItem('showSignatureOffline') !== 'false'),
       signatureSize: rx.signatureSize || parseInt(localStorage.getItem('signatureSizeOffline')) || 220,
       signaturePosition: rx.signaturePosition || localStorage.getItem('signaturePositionOffline') || 'inline',
@@ -1201,6 +1205,8 @@ export default function App() {
       marginSize: 40,
       rowSpacing: 12,
       useLetterhead: localStorage.getItem('useLetterheadOffline') === 'true',
+      letterheadTopMargin: parseInt(localStorage.getItem('letterheadTopMarginOffline')) || 340,
+      letterheadBottomMargin: parseInt(localStorage.getItem('letterheadBottomMarginOffline')) || 220,
       showSignature: localStorage.getItem('showSignatureOffline') !== 'false',
       signatureSize: parseInt(localStorage.getItem('signatureSizeOffline')) || 220,
       signaturePosition: localStorage.getItem('signaturePositionOffline') || 'inline',
@@ -4087,9 +4093,49 @@ export default function App() {
                         style={{ cursor: 'pointer', width: 'auto' }}
                       />
                       <label htmlFor="use-letterhead-offline" style={{ fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}>
-                        Print on Pre-printed Letterhead (2.75" Header, 1.75" Footer)
+                        Print on Pre-printed Letterhead Paper
                       </label>
                     </div>
+
+                    {offlineLayout.useLetterhead && (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Header Top Space (Letterhead Space)</span>
+                            <span>{offlineLayout.letterheadTopMargin || 340}px</span>
+                          </label>
+                          <input 
+                            type="range" 
+                            min="220" 
+                            max="450" 
+                            value={offlineLayout.letterheadTopMargin || 340} 
+                            onChange={e => {
+                              const val = parseInt(e.target.value);
+                              localStorage.setItem('letterheadTopMarginOffline', val.toString());
+                              setOfflineLayout(prev => ({ ...prev, letterheadTopMargin: val }));
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Footer Bottom Space (Letterhead Space)</span>
+                            <span>{offlineLayout.letterheadBottomMargin || 220}px</span>
+                          </label>
+                          <input 
+                            type="range" 
+                            min="100" 
+                            max="350" 
+                            value={offlineLayout.letterheadBottomMargin || 220} 
+                            onChange={e => {
+                              const val = parseInt(e.target.value);
+                              localStorage.setItem('letterheadBottomMarginOffline', val.toString());
+                              setOfflineLayout(prev => ({ ...prev, letterheadBottomMargin: val }));
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
 
                     {/* Signature Settings Divider */}
                     <div style={{ gridColumn: 'span 2', height: '1px', backgroundColor: 'var(--neutral-border)', margin: '0.5rem 0' }}></div>
@@ -4200,8 +4246,8 @@ export default function App() {
                     style={{ 
                       width: `${offlineLayout.pageWidth}px`, 
                       height: `${offlineLayout.pageHeight}px`,
-                      paddingTop: offlineLayout.useLetterhead ? '264px' : `${offlineLayout.marginSize}px`,
-                      paddingBottom: offlineLayout.useLetterhead ? '168px' : `${offlineLayout.marginSize}px`,
+                      paddingTop: offlineLayout.useLetterhead ? `${offlineLayout.letterheadTopMargin || 340}px` : `${offlineLayout.marginSize}px`,
+                      paddingBottom: offlineLayout.useLetterhead ? `${offlineLayout.letterheadBottomMargin || 220}px` : `${offlineLayout.marginSize}px`,
                       paddingLeft: `${offlineLayout.marginSize}px`,
                       paddingRight: `${offlineLayout.marginSize}px`,
                       fontSize: `${offlineLayout.fontSize}px`,
