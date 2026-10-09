@@ -7,6 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169e1?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com/)
 [![Socket.io](https://img.shields.io/badge/Socket.io-Real--Time-010101?style=for-the-badge&logo=socket.io&logoColor=white)](https://socket.io/)
 [![Razorpay](https://img.shields.io/badge/Payments-Razorpay-02042b?style=for-the-badge&logo=razorpay&logoColor=3395ff)](https://razorpay.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **Neuro Harmony Clinic** is an end-to-end modern Telehealth, Practice Management, and Clinical Electronic Medical Records (EMR) system. It unites a real-time Doctor Clinical Workspace, an intuitive Patient Booking Portal, and a resilient Express/Prisma/PostgreSQL backend engine.
 
@@ -192,6 +193,8 @@ npm run dev
 
 ---
 
-## 📄 License & Attribution
+## 📄 License
 
-Developed with ❤️ for **Neuro Harmony Clinic**. All rights reserved.
+This project is licensed under the **MIT License** — see the [LICENSE](file:///Users/akshatsrivastava/Desktop/neuro%20harmony%20clinic/doctor-appointment-website/LICENSE) file for full details.
+
+Developed with ❤️ by **Akshat Srivastava**.
