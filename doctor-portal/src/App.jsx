@@ -252,7 +252,8 @@ export default function App() {
     medications: [],
     advice: '',
     requiredTests: '',
-    followUpDate: ''
+    followUpDate: '',
+    privateNotes: ''
   });
 
   const [offlineLayout, setOfflineLayout] = useState({
@@ -1155,7 +1156,8 @@ export default function App() {
       medications: (typeof rx.medications === 'string' ? JSON.parse(rx.medications) : rx.medications) || [],
       advice: rx.advice || '',
       requiredTests: rx.requiredTests || '',
-      followUpDate: rx.followUpDate ? rx.followUpDate.split('T')[0] : ''
+      followUpDate: rx.followUpDate ? rx.followUpDate.split('T')[0] : '',
+      privateNotes: rx.privateNotes || rx.private_notes || ''
     });
     setEditingOfflineMedIndex(null);
     setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
@@ -1199,7 +1201,8 @@ export default function App() {
       medications: [],
       advice: '',
       requiredTests: '',
-      followUpDate: ''
+      followUpDate: '',
+      privateNotes: ''
     });
     setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
     setOfflineLayout(prev => ({
@@ -1572,7 +1575,8 @@ export default function App() {
       medications: [],
       advice: '',
       requiredTests: '',
-      followUpDate: ''
+      followUpDate: '',
+      privateNotes: rx.privateNotes || rx.private_notes || ''
     });
     setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
     // Expand the past visit so the doctor sees previous history immediately
@@ -3959,6 +3963,45 @@ export default function App() {
                   />
                 </div>
 
+                {/* Private Doctor Notes & Referrals (Doctor-Only / Confidential) */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.45rem',
+                  backgroundColor: '#fffbeb',
+                  border: '1.5px solid #fde68a',
+                  borderRadius: '8px',
+                  padding: '0.85rem',
+                  boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span>🔒</span> Private Doctor Notes & Referrals
+                    </label>
+                    <span style={{ fontSize: '0.68rem', backgroundColor: '#fef3c7', color: '#b45309', padding: '0.15rem 0.5rem', borderRadius: '12px', fontWeight: 700, border: '1px solid #fcd34d' }}>
+                      👁️ Only visible to you • Never printed on Rx
+                    </span>
+                  </div>
+                  <p style={{ margin: '0.1rem 0 0.2rem 0', fontSize: '0.73rem', color: '#78350f', lineHeight: 1.35 }}>
+                    Confidential doctor-only remarks (e.g. <em>Referred by Dr. Sharma</em>, private clinical observations, patient background, or personal follow-up reminders).
+                  </p>
+                  <textarea 
+                    placeholder="e.g. Referred by Dr. Rajesh Sharma (Neurology). Patient history of migraine with aura. Monitor response to dosage."
+                    rows="2"
+                    value={offlineForm.privateNotes || ''}
+                    onChange={e => setOfflineForm(prev => ({ ...prev, privateNotes: e.target.value }))}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderColor: '#fcd34d',
+                      color: '#1e293b',
+                      fontSize: '0.85rem',
+                      lineHeight: 1.45,
+                      borderRadius: '6px',
+                      padding: '0.5rem 0.65rem'
+                    }}
+                  />
+                </div>
+
                 {/* Follow-up Calendar Datepicker */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', border: '1px solid var(--neutral-border)', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--neutral-light)' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>📅 Schedule Next Follow-up (Calendar)</label>
@@ -4926,6 +4969,18 @@ export default function App() {
                                         <div style={{ color: '#134e4a', whiteSpace: 'pre-wrap' }}>{histRx.advice}</div>
                                       </div>
                                     )}
+                                  </div>
+                                )}
+
+                                {/* Private Doctor Notes if recorded in past visit */}
+                                {(histRx.privateNotes || histRx.private_notes) && (
+                                  <div style={{ backgroundColor: '#fffbeb', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.8rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 800, color: '#b45309', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                                      <span>🔒</span> Private Doctor Notes (Confidential)
+                                    </div>
+                                    <div style={{ color: '#78350f', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                                      {histRx.privateNotes || histRx.private_notes}
+                                    </div>
                                   </div>
                                 )}
 

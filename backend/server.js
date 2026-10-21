@@ -171,6 +171,14 @@ app.use((err, req, res, next) => {
 server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   startReminderScheduler();
+  // Ensure private_notes column exists on offline_prescriptions
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "offline_prescriptions" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;
+    `);
+  } catch (err) {
+    console.error('Error ensuring private_notes column:', err);
+  }
   // Ensure 5 PM to 9 PM daily slots are seeded and ready
   await ensureDoctorAvailabilityAndTemplates();
 });

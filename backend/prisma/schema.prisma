@@ -228,6 +228,7 @@ model OfflinePrescription {
   weight          String?
   followUpDate    DateTime? @map("follow_up_date") @db.Timestamptz()
   consultDate     DateTime? @map("consult_date") @db.Timestamptz()
+  privateNotes    String?   @map("private_notes")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 

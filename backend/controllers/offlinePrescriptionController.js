@@ -28,7 +28,8 @@ export async function createOfflinePrescription(req, res) {
     pulse,
     weight,
     followUpDate,
-    consultDate
+    consultDate,
+    privateNotes
   } = req.body;
 
   if (!patientName || !patientAge || !patientGender || !diagnosis) {
@@ -107,7 +108,8 @@ export async function createOfflinePrescription(req, res) {
       pulse: pulse || null,
       weight: weight || null,
       followUpDate: followUpDate ? new Date(followUpDate) : null,
-      consultDate: consultDate ? new Date(consultDate) : null
+      consultDate: consultDate ? new Date(consultDate) : null,
+      privateNotes: privateNotes !== undefined ? (privateNotes ? String(privateNotes).trim() : null) : null
     };
 
     let prescription;
