@@ -1330,6 +1330,13 @@ export default function App() {
         if (selectedOfflineRxId === rxId) {
           resetOfflineForm();
         }
+        setOfflineRxList(prev => {
+          const next = prev.filter(r => r.id !== rxId);
+          try {
+            localStorage.setItem('cached_offline_prescriptions', JSON.stringify(next));
+          } catch (e) {}
+          return next;
+        });
         fetchOfflinePrescriptions();
       } else {
         alert(data.message || 'Failed to delete offline prescription.');
@@ -2311,6 +2318,7 @@ export default function App() {
         fetchOpdQueue={fetchOpdQueue}
         loadingOpdQueue={loadingOpdQueue}
         offlineRxList={offlineRxList}
+        fetchOfflinePrescriptions={fetchOfflinePrescriptions}
         formatPrintDate={formatPrintDate}
       />
     );

@@ -10,6 +10,7 @@ export default function ReceptionDeskView({
   fetchOpdQueue,
   loadingOpdQueue,
   offlineRxList,
+  fetchOfflinePrescriptions,
   formatPrintDate
 }) {
   // Form State
@@ -39,6 +40,9 @@ export default function ReceptionDeskView({
   // Auto-refresh interval (every 8 seconds to keep live queue sync)
   useEffect(() => {
     fetchOpdQueue();
+    if (fetchOfflinePrescriptions) {
+      fetchOfflinePrescriptions();
+    }
     const interval = setInterval(() => {
       fetchOpdQueue();
     }, 8000);
@@ -189,10 +193,36 @@ export default function ReceptionDeskView({
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.success && Array.isArray(data.patients) && data.patients.length > 0) {
+        if (data.success && Array.isArray(data.patients)) {
+          // Database is ground truth: if a record was deleted, the database returns 0 results
           setSearchResults(data.patients);
-        } else if (uniqueLocal.length === 0) {
-          setSearchResults([]);
+
+          // If backend returned 0 results, purge any stale matching records from localStorage too!
+          if (data.patients.length === 0) {
+            try {
+              const saved = localStorage.getItem('cached_offline_prescriptions');
+              if (saved) {
+                const list = JSON.parse(saved);
+                if (Array.isArray(list)) {
+                  const cleaned = list.filter(rx => {
+                    const pPhone = (rx.patientPhone || '').toLowerCase().trim();
+                    const pName = (rx.patientName || '').toLowerCase().trim();
+                    const pRef = (rx.referenceId || '').toLowerCase().trim();
+                    const pSerial = pRef.split('/')[0].trim();
+                    return !(
+                      pRef === q ||
+                      pRef.includes(q) ||
+                      pSerial === serialPart ||
+                      pSerial === q ||
+                      pName.includes(q) ||
+                      pPhone.includes(q)
+                    );
+                  });
+                  localStorage.setItem('cached_offline_prescriptions', JSON.stringify(cleaned));
+                }
+              }
+            } catch (e) {}
+          }
         }
       } catch (err) {
         console.warn('Patient search error:', err);
