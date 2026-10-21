@@ -4487,30 +4487,30 @@ export default function App() {
                       )}
 
                       {/* Structured Patient Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1.05fr 1.05fr 1.05fr 1fr', gap: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.82em', marginBottom: '1rem', backgroundColor: '#f8fafc', alignItems: 'center' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1.05fr 1.05fr 1.05fr 1fr', gap: '0.5rem', border: '2px solid #0f766e', borderRadius: '8px', padding: '0.6rem 0.85rem', fontSize: '0.82em', marginBottom: '1rem', backgroundColor: '#f8fafc', alignItems: 'center' }}>
                         <div>
-                          <div><strong style={{ color: '#64748b', fontSize: '0.72em' }}>PATIENT NAME</strong></div>
-                          <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.02em', marginTop: '0.1rem', wordBreak: 'break-word' }}>{offlineForm.patientName || '__________________'}</div>
+                          <div><strong style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.74em', letterSpacing: '0.04em' }}>PATIENT NAME</strong></div>
+                          <div style={{ fontWeight: 800, color: '#000000', fontSize: '1.05em', marginTop: '0.12rem', wordBreak: 'break-word' }}>{offlineForm.patientName || '__________________'}</div>
                         </div>
                         <div>
-                          <div><strong style={{ color: '#64748b', fontSize: '0.72em' }}>AGE / GENDER</strong></div>
-                          <div style={{ color: '#1e293b', fontSize: '0.95em', marginTop: '0.1rem' }}>
+                          <div><strong style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.74em', letterSpacing: '0.04em' }}>AGE / GENDER</strong></div>
+                          <div style={{ fontWeight: 800, color: '#000000', fontSize: '0.98em', marginTop: '0.12rem' }}>
                             {offlineForm.patientAge ? `${offlineForm.patientAge} Yrs` : '___ Yrs'} / {offlineForm.patientGender}
                           </div>
                         </div>
                         <div>
-                          <div><strong style={{ color: '#64748b', fontSize: '0.72em' }}>PHONE NUMBER</strong></div>
-                          <div style={{ color: '#1e293b', fontSize: '0.95em', marginTop: '0.1rem' }}>{offlineForm.patientPhone || '__________________'}</div>
+                          <div><strong style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.74em', letterSpacing: '0.04em' }}>PHONE NUMBER</strong></div>
+                          <div style={{ fontWeight: 800, color: '#000000', fontSize: '0.98em', marginTop: '0.12rem' }}>{offlineForm.patientPhone || '__________________'}</div>
                         </div>
                         <div>
-                          <div><strong style={{ color: '#64748b', fontSize: '0.72em' }}>DATE OF CONSULTATION</strong></div>
-                          <div style={{ color: '#1e293b', fontSize: '0.95em', marginTop: '0.1rem' }}>
+                          <div><strong style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.74em', letterSpacing: '0.04em' }}>DATE OF CONSULTATION</strong></div>
+                          <div style={{ fontWeight: 800, color: '#000000', fontSize: '0.98em', marginTop: '0.12rem' }}>
                             {formatPrintDate(offlineForm.consultDate)}
                           </div>
                         </div>
                         <div>
-                          <div><strong style={{ color: '#64748b', fontSize: '0.72em' }}>RX ID / REFERENCE</strong></div>
-                          <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95em', marginTop: '0.1rem' }}>
+                          <div><strong style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.74em', letterSpacing: '0.04em' }}>RX ID / REFERENCE</strong></div>
+                          <div style={{ fontWeight: 800, color: '#000000', fontSize: '0.98em', marginTop: '0.12rem' }}>
                             {offlineForm.referenceId || (selectedOfflineRxId ? `OFF-RX-${selectedOfflineRxId.slice(0, 8).toUpperCase()}` : 'OFFLINE-NEW')}
                           </div>
                         </div>
@@ -4525,26 +4525,26 @@ export default function App() {
                           {/* 0. Vitals Card (BP, Pulse, Weight) - Only rendered when doctor writes them */}
                           {(Boolean(offlineForm.bp && offlineForm.bp.trim()) || Boolean(offlineForm.pulse && offlineForm.pulse.trim()) || Boolean(offlineForm.weight && offlineForm.weight.trim())) && (
                             <div>
-                              <div style={{ fontSize: '0.75em', fontWeight: 800, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>VITALS</div>
-                              <div style={{ display: 'flex', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden' }}>
-                                <div style={{ width: '4px', backgroundColor: '#e11d48' }}></div>
-                                <div style={{ flex: 1, padding: '0.5rem 0.75rem', backgroundColor: '#f8fafc', fontSize: '0.84em', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                              <div style={{ fontSize: '0.78em', fontWeight: 800, color: '#be123c', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>VITALS</div>
+                              <div style={{ display: 'flex', border: '1.5px solid #fecdd3', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff1f2' }}>
+                                <div style={{ width: '5px', backgroundColor: '#e11d48' }}></div>
+                                <div style={{ flex: 1, padding: '0.6rem 0.8rem', backgroundColor: '#fff1f2', fontSize: '0.84em', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                   {offlineForm.bp && offlineForm.bp.trim() && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.78em' }}>BLOOD PRESSURE</span>
-                                      <span style={{ fontWeight: 800, color: '#1e293b' }}>{formatBP(offlineForm.bp)}</span>
+                                      <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.78em', letterSpacing: '0.03em' }}>BLOOD PRESSURE</span>
+                                      <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp)}</span>
                                     </div>
                                   )}
                                   {offlineForm.pulse && offlineForm.pulse.trim() && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.78em' }}>PULSE RATE</span>
-                                      <span style={{ fontWeight: 800, color: '#1e293b' }}>{formatPulse(offlineForm.pulse)}</span>
+                                      <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.78em', letterSpacing: '0.03em' }}>PULSE RATE</span>
+                                      <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse)}</span>
                                     </div>
                                   )}
                                   {offlineForm.weight && offlineForm.weight.trim() && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.78em' }}>WEIGHT</span>
-                                      <span style={{ fontWeight: 800, color: '#1e293b' }}>{formatWeight(offlineForm.weight)}</span>
+                                      <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.78em', letterSpacing: '0.03em' }}>WEIGHT</span>
+                                      <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatWeight(offlineForm.weight)}</span>
                                     </div>
                                   )}
                                 </div>
@@ -4554,10 +4554,10 @@ export default function App() {
 
                           {/* 1. Chief Complaints Card */}
                           <div>
-                            <div style={{ fontSize: '0.75em', fontWeight: 800, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>CHIEF COMPLAINTS</div>
-                            <div style={{ display: 'flex', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden' }}>
-                              <div style={{ width: '4px', backgroundColor: '#3b82f6' }}></div>
-                              <div style={{ flex: 1, padding: '0.6rem 0.8rem', backgroundColor: '#f8fafc', fontSize: '0.85em', color: offlineForm.chiefComplaints ? '#000000' : '#94a3b8', fontWeight: offlineForm.chiefComplaints ? 700 : 'normal', lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontStyle: offlineForm.chiefComplaints ? 'normal' : 'italic' }}>
+                            <div style={{ fontSize: '0.78em', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>CHIEF COMPLAINTS</div>
+                            <div style={{ display: 'flex', border: '1.5px solid #bfdbfe', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#eff6ff' }}>
+                              <div style={{ width: '5px', backgroundColor: '#2563eb' }}></div>
+                              <div style={{ flex: 1, padding: '0.65rem 0.85rem', backgroundColor: '#eff6ff', fontSize: '0.86em', color: offlineForm.chiefComplaints ? '#0f172a' : '#64748b', fontWeight: offlineForm.chiefComplaints ? 700 : 'normal', lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontStyle: offlineForm.chiefComplaints ? 'normal' : 'italic' }}>
                                 {offlineForm.chiefComplaints || 'No complaints recorded.'}
                               </div>
                             </div>
@@ -4565,10 +4565,10 @@ export default function App() {
 
                           {/* 2. Diagnosis Card */}
                           <div>
-                            <div style={{ fontSize: '0.75em', fontWeight: 800, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>DIAGNOSIS</div>
-                            <div style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-                              <div style={{ width: '4px', backgroundColor: '#0f766e' }}></div>
-                              <div style={{ flex: 1, padding: '0.6rem 0.8rem', backgroundColor: '#f8fafc', fontSize: '0.85em', color: offlineForm.diagnosis ? '#000000' : '#94a3b8', fontWeight: offlineForm.diagnosis ? 700 : 'normal', lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontStyle: offlineForm.diagnosis ? 'normal' : 'italic' }}>
+                            <div style={{ fontSize: '0.78em', fontWeight: 800, color: '#0f766e', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>DIAGNOSIS</div>
+                            <div style={{ display: 'flex', border: '1.5px solid #99f6e4', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f0fdfa' }}>
+                              <div style={{ width: '5px', backgroundColor: '#0f766e' }}></div>
+                              <div style={{ flex: 1, padding: '0.65rem 0.85rem', backgroundColor: '#f0fdfa', fontSize: '0.86em', color: offlineForm.diagnosis ? '#0f172a' : '#64748b', fontWeight: offlineForm.diagnosis ? 800 : 'normal', lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontStyle: offlineForm.diagnosis ? 'normal' : 'italic' }}>
                                 {offlineForm.diagnosis || 'No clinical diagnosis recorded.'}
                               </div>
                             </div>
@@ -4577,10 +4577,10 @@ export default function App() {
                           {/* 3. Recommended/Required Tests Card (Optional) */}
                           {offlineForm.requiredTests && (
                             <div>
-                              <div style={{ fontSize: '0.75em', fontWeight: 800, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>TESTS REQUIRED</div>
-                              <div style={{ display: 'flex', border: '1px solid #fed7aa', borderRadius: '6px', overflow: 'hidden' }}>
-                                <div style={{ width: '4px', backgroundColor: '#ea580c' }}></div>
-                                <div style={{ flex: 1, padding: '0.6rem 0.8rem', backgroundColor: '#fff7ed', fontSize: '0.85em', color: '#000000', fontWeight: 700, lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              <div style={{ fontSize: '0.78em', fontWeight: 800, color: '#c2410c', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>TESTS REQUIRED</div>
+                              <div style={{ display: 'flex', border: '1.5px solid #fed7aa', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff7ed' }}>
+                                <div style={{ width: '5px', backgroundColor: '#ea580c' }}></div>
+                                <div style={{ flex: 1, padding: '0.65rem 0.85rem', backgroundColor: '#fff7ed', fontSize: '0.86em', color: '#0f172a', fontWeight: 700, lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                                   {offlineForm.requiredTests}
                                 </div>
                               </div>
@@ -4590,10 +4590,10 @@ export default function App() {
                           {/* 4. General Advice Card */}
                           {offlineForm.advice && (
                             <div>
-                              <div style={{ fontSize: '0.75em', fontWeight: 800, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>GENERAL ADVICE</div>
-                              <div style={{ display: 'flex', border: '1px solid #ccfbf1', borderRadius: '6px', overflow: 'hidden' }}>
-                                <div style={{ width: '4px', backgroundColor: '#0d9488' }}></div>
-                                <div style={{ flex: 1, padding: '0.6rem 0.8rem', backgroundColor: '#f0fdfa', fontSize: '0.85em', color: '#000000', fontWeight: 700, lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              <div style={{ fontSize: '0.78em', fontWeight: 800, color: '#059669', letterSpacing: '0.05em', marginBottom: '0.35rem', textTransform: 'uppercase' }}>GENERAL ADVICE</div>
+                              <div style={{ display: 'flex', border: '1.5px solid #a7f3d0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ecfdf5' }}>
+                                <div style={{ width: '5px', backgroundColor: '#059669' }}></div>
+                                <div style={{ flex: 1, padding: '0.65rem 0.85rem', backgroundColor: '#ecfdf5', fontSize: '0.86em', color: '#0f172a', fontWeight: 700, lineHeight: 1.4, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                                   {offlineForm.advice}
                                 </div>
                               </div>
@@ -4874,24 +4874,24 @@ export default function App() {
                                 </div>
 
                                 {/* Vitals & Clinical Overview */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', backgroundColor: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }}>
-                                  <div><span style={{ color: '#64748b' }}>BP:</span> <strong style={{ color: '#1e293b' }}>{histRx.bp ? formatBP(histRx.bp) : '—'}</strong></div>
-                                  <div><span style={{ color: '#64748b' }}>Pulse:</span> <strong style={{ color: '#1e293b' }}>{histRx.pulse ? formatPulse(histRx.pulse) : '—'}</strong></div>
-                                  <div><span style={{ color: '#64748b' }}>Weight:</span> <strong style={{ color: '#1e293b' }}>{histRx.weight ? formatWeight(histRx.weight) : '—'}</strong></div>
-                                  <div><span style={{ color: '#64748b' }}>Visit Date:</span> <strong style={{ color: '#1e293b' }}>{consultDateFormatted}</strong></div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', backgroundColor: '#fff1f2', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #fecdd3', fontSize: '0.8rem' }}>
+                                  <div><span style={{ color: '#9f1239', fontWeight: 700 }}>BP:</span> <strong style={{ color: '#0f172a' }}>{histRx.bp ? formatBP(histRx.bp) : '—'}</strong></div>
+                                  <div><span style={{ color: '#9f1239', fontWeight: 700 }}>Pulse:</span> <strong style={{ color: '#0f172a' }}>{histRx.pulse ? formatPulse(histRx.pulse) : '—'}</strong></div>
+                                  <div><span style={{ color: '#9f1239', fontWeight: 700 }}>Weight:</span> <strong style={{ color: '#0f172a' }}>{histRx.weight ? formatWeight(histRx.weight) : '—'}</strong></div>
+                                  <div><span style={{ color: '#9f1239', fontWeight: 700 }}>Visit Date:</span> <strong style={{ color: '#0f172a' }}>{consultDateFormatted}</strong></div>
                                 </div>
 
                                 {/* Chief Complaints & Diagnosis */}
                                 <div style={{ display: 'grid', gridTemplateColumns: histRx.chiefComplaints ? '1fr 1fr' : '1fr', gap: '0.75rem', fontSize: '0.82rem' }}>
                                   {histRx.chiefComplaints && (
-                                    <div style={{ backgroundColor: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                                      <div style={{ fontWeight: 800, color: '#3b82f6', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Chief Complaints</div>
-                                      <div style={{ color: '#1e293b', whiteSpace: 'pre-wrap' }}>{histRx.chiefComplaints}</div>
+                                    <div style={{ backgroundColor: '#eff6ff', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                                      <div style={{ fontWeight: 800, color: '#1d4ed8', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Chief Complaints</div>
+                                      <div style={{ color: '#0f172a', whiteSpace: 'pre-wrap' }}>{histRx.chiefComplaints}</div>
                                     </div>
                                   )}
-                                  <div style={{ backgroundColor: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                  <div style={{ backgroundColor: '#f0fdfa', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #99f6e4' }}>
                                     <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Diagnosis</div>
-                                    <div style={{ color: '#1e293b', whiteSpace: 'pre-wrap' }}>{histRx.diagnosis || 'No clinical diagnosis recorded.'}</div>
+                                    <div style={{ color: '#0f172a', whiteSpace: 'pre-wrap', fontWeight: histRx.diagnosis ? 700 : 'normal' }}>{histRx.diagnosis || 'No clinical diagnosis recorded.'}</div>
                                   </div>
                                 </div>
 

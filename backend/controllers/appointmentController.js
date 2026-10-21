@@ -582,27 +582,27 @@ export async function createPrescription(req, res, next) {
     const patientMetaBoxY = startY + 12;
 
     // 2. Structured Patient Information Grid
-    doc.fillColor('#64748b').font(pdfFontBold).fontSize(8 * scale).text('PATIENT METADATA', 50, startY);
+    doc.fillColor('#0f766e').font(pdfFontBold).fontSize(8 * scale).text('PATIENT METADATA', 50, startY);
 
-    // Box border
-    doc.rect(50, patientMetaBoxY, 495, 54).lineWidth(1).strokeColor('#cbd5e1').stroke();
+    // Box border (bold curved border)
+    doc.roundedRect(50, patientMetaBoxY, 495, 54, 4).lineWidth(1.5).strokeColor('#0f766e').stroke();
     // Vertical splitter line
-    doc.moveTo(297, patientMetaBoxY).lineTo(297, patientMetaBoxY + 54).strokeColor('#cbd5e1').stroke();
+    doc.moveTo(297, patientMetaBoxY).lineTo(297, patientMetaBoxY + 54).lineWidth(1).strokeColor('#cbd5e1').stroke();
     // Horizontal splitter line
-    doc.moveTo(50, patientMetaBoxY + 27).lineTo(545, patientMetaBoxY + 27).strokeColor('#cbd5e1').stroke();
+    doc.moveTo(50, patientMetaBoxY + 27).lineTo(545, patientMetaBoxY + 27).lineWidth(1).strokeColor('#cbd5e1').stroke();
 
     // Metadata entries
-    doc.fillColor('#64748b').font(pdfFontBold).fontSize(7.5 * scale).text('PATIENT NAME', 60, patientMetaBoxY + 6);
-    doc.fillColor('#1e293b').font(pdfFontBold).fontSize(9.5 * scale).text(appointment.patientName, 60, patientMetaBoxY + 15);
+    doc.fillColor('#0f172a').font(pdfFontBold).fontSize(7.5 * scale).text('PATIENT NAME', 60, patientMetaBoxY + 6);
+    doc.fillColor('#000000').font(pdfFontBold).fontSize(9.5 * scale).text(appointment.patientName, 60, patientMetaBoxY + 15);
 
-    doc.fillColor('#64748b').font(pdfFontBold).fontSize(7.5 * scale).text('DATE OF CONSULTATION', 307, patientMetaBoxY + 6);
-    doc.fillColor('#1e293b').font(pdfFontBody).fontSize(9.5 * scale).text(new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }), 307, patientMetaBoxY + 15);
+    doc.fillColor('#0f172a').font(pdfFontBold).fontSize(7.5 * scale).text('DATE OF CONSULTATION', 307, patientMetaBoxY + 6);
+    doc.fillColor('#000000').font(pdfFontBold).fontSize(9.5 * scale).text(new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }), 307, patientMetaBoxY + 15);
 
-    doc.fillColor('#64748b').font(pdfFontBold).fontSize(7.5 * scale).text('AGE / GENDER', 60, patientMetaBoxY + 33);
-    doc.fillColor('#1e293b').font(pdfFontBody).fontSize(9.5 * scale).text(`${appointment.patientAge} Yrs / Self`, 60, patientMetaBoxY + 42);
+    doc.fillColor('#0f172a').font(pdfFontBold).fontSize(7.5 * scale).text('AGE / GENDER', 60, patientMetaBoxY + 33);
+    doc.fillColor('#000000').font(pdfFontBold).fontSize(9.5 * scale).text(`${appointment.patientAge} Yrs / Self`, 60, patientMetaBoxY + 42);
 
-    doc.fillColor('#64748b').font(pdfFontBold).fontSize(7.5 * scale).text('RX ID / BOOKING ID', 307, patientMetaBoxY + 33);
-    doc.fillColor('#1e293b').font(pdfFontBold).fontSize(9.5 * scale).text(appointment.bookingId, 307, patientMetaBoxY + 42);
+    doc.fillColor('#0f172a').font(pdfFontBold).fontSize(7.5 * scale).text('RX ID / BOOKING ID', 307, patientMetaBoxY + 33);
+    doc.fillColor('#000000').font(pdfFontBold).fontSize(9.5 * scale).text(appointment.bookingId, 307, patientMetaBoxY + 42);
 
     // 3. Medications Title with Decorative Rx Symbol
     const rxSymbolY = patientMetaBoxY + 54 + 16;
