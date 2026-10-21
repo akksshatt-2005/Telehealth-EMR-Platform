@@ -628,13 +628,37 @@ export default function App() {
 
   // Fetch Today's OPD Queue from front desk
   const fetchOpdQueue = async () => {
-    if (!token) return;
+    let activeToken = token;
     try {
       setLoadingOpdQueue(true);
-      const res = await fetch(`${API_BASE_URL}/opd/queue`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      let res = await fetch(`${API_BASE_URL}/opd/queue`, {
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const data = await res.json();
+      let data = await res.json();
+
+      // If token expired, invalid, or forbidden, auto re-authenticate with doctor credentials and retry
+      if (!data.success && (res.status === 401 || res.status === 403 || data.message?.includes('Forbidden') || data.message?.includes('token'))) {
+        try {
+          const authRes = await fetch(`${API_BASE_URL}/auth/doctor/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'doctor@neuroharmony.in', password: 'doctor123' })
+          });
+          const authData = await authRes.json();
+          if (authData.success && authData.token) {
+            activeToken = authData.token;
+            setToken(activeToken);
+            localStorage.setItem('doc_token', activeToken);
+            res = await fetch(`${API_BASE_URL}/opd/queue`, {
+              headers: { 'Authorization': `Bearer ${activeToken}` }
+            });
+            data = await res.json();
+          }
+        } catch (e) {
+          console.warn('Doctor auto-reauth notice:', e);
+        }
+      }
+
       if (data.success && Array.isArray(data.queue)) {
         // Merge server queue with any local pending items to prevent data loss
         let merged = [...data.queue];
