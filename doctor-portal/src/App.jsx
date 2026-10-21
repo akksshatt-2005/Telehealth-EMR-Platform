@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import ReceptionDeskView from './components/ReceptionDeskView';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${API_URL}/api/v1`;
@@ -214,6 +215,11 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [loginRole, setLoginRole] = useState('DOCTOR'); // 'DOCTOR' or 'RECEPTIONIST'
+
+  const [opdQueue, setOpdQueue] = useState([]);
+  const [loadingOpdQueue, setLoadingOpdQueue] = useState(false);
+  const [activeConsultingQueueId, setActiveConsultingQueueId] = useState(null);
 
   const [appointments, setAppointments] = useState([]);
   const [loadingAppts, setLoadingAppts] = useState(false);
@@ -582,6 +588,72 @@ export default function App() {
       jitsiApiRef.current = null;
     };
   }, [activeVideoAppt]);
+
+  // Fetch Today's OPD Queue from front desk
+  const fetchOpdQueue = async () => {
+    if (!token) return;
+    try {
+      setLoadingOpdQueue(true);
+      const res = await fetch(`${API_BASE_URL}/opd/queue`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.queue)) {
+        setOpdQueue(data.queue);
+      }
+    } catch (err) {
+      console.warn('fetchOpdQueue notice:', err.message);
+    } finally {
+      setLoadingOpdQueue(false);
+    }
+  };
+
+  // Load patient from OPD Queue directly into Prescription Editor
+  const startConsultationFromQueue = async (queuePatient) => {
+    setDashboardView('offline-rx');
+    setOfflineForm(prev => ({
+      ...prev,
+      patientName: queuePatient.patient_name || '',
+      patientPhone: queuePatient.patient_phone || '',
+      patientAge: queuePatient.patient_age ? String(queuePatient.patient_age) : '',
+      patientGender: queuePatient.patient_gender || 'Male',
+      referenceId: queuePatient.reference_id || '',
+      bp: queuePatient.bp || '',
+      pulse: queuePatient.pulse || '',
+      weight: queuePatient.weight || '',
+      chiefComplaints: queuePatient.chief_complaints || '',
+      privateNotes: queuePatient.private_notes || '',
+      consultDate: getLocalDateStr(),
+      diagnosis: '',
+      medications: [],
+      advice: '',
+      requiredTests: ''
+    }));
+    setActiveConsultingQueueId(queuePatient.id);
+    setSelectedOfflineRxId(null);
+
+    // Update status in queue to IN_CONSULTATION
+    try {
+      await fetch(`${API_BASE_URL}/opd/queue/${queuePatient.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'IN_CONSULTATION' })
+      });
+      fetchOpdQueue();
+    } catch (err) {
+      console.warn('Queue status update error:', err);
+    }
+
+    // Automatically focus Medicine Name input field so doctor can start typing meds immediately!
+    setTimeout(() => {
+      if (medNameInputRef.current) {
+        medNameInputRef.current.focus();
+      }
+    }, 200);
+  };
 
   // Fetch appointments from API
   const fetchAppointments = async () => {
@@ -1003,6 +1075,25 @@ export default function App() {
         setOfflineForm(prev => ({ ...prev, referenceId: data.prescription.referenceId || '' }));
         fetchOfflinePrescriptions();
         fetchMedicines();
+
+        // If this prescription was started from an OPD Queue check-in, mark it as COMPLETED
+        if (activeConsultingQueueId) {
+          try {
+            await fetch(`${API_BASE_URL}/opd/queue/${activeConsultingQueueId}/status`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ status: 'COMPLETED' })
+            });
+            setActiveConsultingQueueId(null);
+            fetchOpdQueue();
+          } catch (qErr) {
+            console.warn('Queue status update error:', qErr);
+          }
+        }
+
         return true;
       } else {
         alert(data.message || 'Failed to save offline prescription.');
@@ -1622,6 +1713,7 @@ export default function App() {
     fetchAppointments();
     fetchOfflinePrescriptions();
     fetchMedicines();
+    fetchOpdQueue();
 
     const socketInstance = io(API_URL, {
       transports: ['websocket']
@@ -1643,9 +1735,19 @@ export default function App() {
       fetchAppointments();
     });
 
+    socketInstance.on('opd_queue_updated', (data) => {
+      console.log('Real-time opd_queue_updated event received:', data);
+      fetchOpdQueue();
+    });
+
     setSocket(socketInstance);
 
+    const queuePollInterval = setInterval(() => {
+      fetchOpdQueue();
+    }, 10000);
+
     return () => {
+      clearInterval(queuePollInterval);
       socketInstance.disconnect();
     };
   }, [token]);
@@ -1798,7 +1900,7 @@ export default function App() {
       const response = await fetch(`${API_BASE_URL}/auth/doctor/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, role: loginRole })
       });
       const data = await response.json();
 
@@ -1812,9 +1914,25 @@ export default function App() {
         setLoginError(data.message || 'Invalid email or password.');
       }
     } catch (err) {
-      // Local fallback for doctor login if backend is not running locally
-      const isDoctorCreds = (email.trim().toLowerCase() === 'doctor@neuroharmony.in' || !email.trim()) && (password === 'doctor123' || !password.trim());
-      if (isDoctorCreds || email.trim().toLowerCase().includes('doctor')) {
+      // Local fallback for doctor and receptionist login if backend is not running locally
+      const cleanEmail = email.trim().toLowerCase();
+      if (cleanEmail === 'reception@neuroharmony.in' || cleanEmail === 'reception' || loginRole === 'RECEPTIONIST') {
+        const dummyUser = {
+          id: 'reception-local-session',
+          name: 'Front Desk / Reception',
+          email: email || 'reception@neuroharmony.in',
+          role: 'RECEPTIONIST'
+        };
+        const dummyToken = 'local-reception-token';
+        setToken(dummyToken);
+        setUser(dummyUser);
+        localStorage.setItem('doc_token', dummyToken);
+        localStorage.setItem('doc_user', JSON.stringify(dummyUser));
+        return;
+      }
+
+      const isDoctorCreds = (cleanEmail === 'doctor@neuroharmony.in' || !cleanEmail) && (password === 'doctor123' || !password.trim());
+      if (isDoctorCreds || cleanEmail.includes('doctor') || loginRole === 'DOCTOR') {
         const dummyUser = {
           id: 'doc-local-session',
           name: 'Dr. Priyadarshi Srivastava',
@@ -2002,9 +2120,29 @@ export default function App() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', boxShadow: 'var(--shadow-lg)' }}>
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Neuro Harmony</h2>
-            <p style={{ fontSize: '0.875rem', color: 'var(--neutral-body)', marginTop: '0.25rem' }}>Doctor Dashboard Portal</p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--neutral-body)', marginTop: '0.25rem' }}>
+              {loginRole === 'DOCTOR' ? 'Doctor Dashboard Portal' : 'Front Desk & OPD Reception Desk'}
+            </p>
+          </div>
+
+          {/* Role Toggle Selector */}
+          <div style={{ display: 'flex', borderRadius: '8px', backgroundColor: '#f1f5f9', padding: '4px', marginBottom: '1.5rem', border: '1px solid #cbd5e1' }}>
+            <button 
+              type="button" 
+              onClick={() => { setLoginRole('DOCTOR'); setEmail('doctor@neuroharmony.in'); setPassword('doctor123'); setLoginError(''); }}
+              style={{ flex: 1, padding: '0.6rem 0.5rem', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '0.85rem', backgroundColor: loginRole === 'DOCTOR' ? '#0f766e' : 'transparent', color: loginRole === 'DOCTOR' ? '#ffffff' : '#64748b', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+            >
+              <span>🩺</span> Doctor Login
+            </button>
+            <button 
+              type="button" 
+              onClick={() => { setLoginRole('RECEPTIONIST'); setEmail('reception@neuroharmony.in'); setPassword('reception123'); setLoginError(''); }}
+              style={{ flex: 1, padding: '0.6rem 0.5rem', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '0.85rem', backgroundColor: loginRole === 'RECEPTIONIST' ? '#0f766e' : 'transparent', color: loginRole === 'RECEPTIONIST' ? '#ffffff' : '#64748b', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+            >
+              <span>🏢</span> Front Desk / Reception
+            </button>
           </div>
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2015,10 +2153,12 @@ export default function App() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Doctor Email</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>
+                {loginRole === 'DOCTOR' ? 'Doctor Email' : 'Staff Email / Username'}
+              </label>
               <input 
-                type="email" 
-                placeholder="e.g. doctor@neuroharmony.in"
+                type="text" 
+                placeholder={loginRole === 'DOCTOR' ? 'e.g. doctor@neuroharmony.in' : 'e.g. reception@neuroharmony.in'}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -2037,11 +2177,28 @@ export default function App() {
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loginLoading}>
-              {loginLoading ? 'Authenticating...' : 'Sign In'}
+              {loginLoading ? 'Authenticating...' : (loginRole === 'DOCTOR' ? 'Sign In as Doctor' : 'Sign In as Front Desk')}
             </button>
           </form>
         </div>
       </div>
+    );
+  }
+
+  // RECEPTIONIST FRONT DESK PORTAL
+  if (user?.role === 'RECEPTIONIST') {
+    return (
+      <ReceptionDeskView
+        user={user}
+        token={token}
+        API_BASE_URL={API_BASE_URL}
+        handleLogout={handleLogout}
+        opdQueue={opdQueue}
+        fetchOpdQueue={fetchOpdQueue}
+        loadingOpdQueue={loadingOpdQueue}
+        offlineRxList={offlineRxList}
+        formatPrintDate={formatPrintDate}
+      />
     );
   }
 
@@ -2392,10 +2549,18 @@ export default function App() {
                 fontWeight: 600,
                 backgroundColor: dashboardView === 'offline-rx' ? 'var(--primary-light)' : 'transparent',
                 color: dashboardView === 'offline-rx' ? 'var(--primary)' : 'var(--neutral-body)',
-                border: dashboardView === 'offline-rx' ? '1px solid var(--primary)' : '1px solid transparent'
+                border: dashboardView === 'offline-rx' ? '1px solid var(--primary)' : '1px solid transparent',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem'
               }}
             >
-              📝 Offline Rx Maker
+              <span>📝 Offline Rx Maker</span>
+              {opdQueue.filter(p => p.status === 'WAITING').length > 0 && (
+                <span style={{ backgroundColor: '#ef4444', color: '#ffffff', borderRadius: '10px', padding: '0.1rem 0.45rem', fontSize: '0.72rem', fontWeight: 800 }}>
+                  {opdQueue.filter(p => p.status === 'WAITING').length} waiting
+                </span>
+              )}
             </button>
           </nav>
         </div>
@@ -2551,6 +2716,108 @@ export default function App() {
 
         {dashboardView === 'offline-rx' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Front Desk Live OPD Queue Section for Doctor */}
+            {opdQueue.filter(p => p.status === 'WAITING' || p.status === 'IN_CONSULTATION').length > 0 && (
+              <div className="no-print" style={{ backgroundColor: '#f0fdfa', border: '2px solid #0f766e', borderRadius: '12px', padding: '1rem 1.25rem', boxShadow: '0 4px 12px rgba(15,118,110,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <span style={{ fontSize: '1.4rem' }}>🔔</span>
+                    <div>
+                      <strong style={{ fontSize: '1.05rem', color: '#0f766e' }}>Front Desk Patient Queue</strong>
+                      <span style={{ fontSize: '0.82rem', color: '#64748b', marginLeft: '0.5rem', fontWeight: 600 }}>
+                        ({opdQueue.filter(p => p.status === 'WAITING').length} waiting outside cabin)
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: 700 }}>
+                      Click "⚡ Consult" to auto-load patient details instantly:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={fetchOpdQueue}
+                      className="btn btn-secondary"
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                    >
+                      ↻ Sync
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '0.85rem' }}>
+                  {opdQueue.filter(p => p.status === 'WAITING' || p.status === 'IN_CONSULTATION').map((qPatient) => {
+                    const isConsulting = qPatient.status === 'IN_CONSULTATION' || activeConsultingQueueId === qPatient.id;
+                    return (
+                      <div 
+                        key={qPatient.id}
+                        style={{ 
+                          backgroundColor: isConsulting ? '#eff6ff' : '#ffffff', 
+                          border: isConsulting ? '2px solid #2563eb' : '1.5px solid #0f766e', 
+                          borderRadius: '8px', 
+                          padding: '0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '0.6rem',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.8rem', backgroundColor: isConsulting ? '#dbeafe' : '#ccfbf1', color: isConsulting ? '#1d4ed8' : '#0f766e', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                              Token #{qPatient.token_number} {isConsulting ? '• In Cabin' : '• Waiting'}
+                            </span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f766e' }}>
+                              Ref: {qPatient.reference_id || 'N/A'}
+                            </span>
+                          </div>
+
+                          <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a' }}>
+                            {qPatient.patient_name}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            {qPatient.patient_age} Yrs / {qPatient.patient_gender} {qPatient.patient_phone ? `• 📞 ${qPatient.patient_phone}` : ''}
+                          </div>
+
+                          {/* Vitals preview row */}
+                          {(qPatient.bp || qPatient.pulse || qPatient.weight || qPatient.sugar) && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.45rem', fontSize: '0.75rem' }}>
+                              {qPatient.bp && <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', fontWeight: 700 }}>BP: {qPatient.bp}</span>}
+                              {qPatient.pulse && <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', fontWeight: 700 }}>Pulse: {qPatient.pulse} bpm</span>}
+                              {qPatient.weight && <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', fontWeight: 700 }}>Wt: {qPatient.weight} kg</span>}
+                              {qPatient.sugar && <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', fontWeight: 700 }}>Sugar: {qPatient.sugar}</span>}
+                            </div>
+                          )}
+
+                          {qPatient.chief_complaints && (
+                            <div style={{ marginTop: '0.45rem', fontSize: '0.78rem', color: '#334155', fontStyle: 'italic', backgroundColor: '#f8fafc', padding: '0.35rem 0.55rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                              💬 {qPatient.chief_complaints}
+                            </div>
+                          )}
+
+                          {qPatient.private_notes && (
+                            <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#0f766e', fontWeight: 700 }}>
+                              📌 Note: {qPatient.private_notes}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => startConsultationFromQueue(qPatient)}
+                          className="btn btn-primary"
+                          style={{ width: '100%', padding: '0.6rem', fontSize: '0.88rem', fontWeight: 800, backgroundColor: isConsulting ? '#2563eb' : '#0f766e', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                        >
+                          <span>⚡</span> {isConsulting ? 'Currently Consulting (Details Loaded)' : 'Consult Patient (Pre-fill All Details)'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             
             {/* Top Workspace Controls: Sidebar Toggle & Quick Patient / Serial Search Bar */}
             <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', alignItems: 'center' }}>

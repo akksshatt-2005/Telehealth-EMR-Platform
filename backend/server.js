@@ -143,6 +143,8 @@ app.get('/api/v1/health', async (req, res) => {
   }
 });
 
+import opdQueueRoutes from './routes/opdQueueRoutes.js';
+
 // Import and register routes here
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', slotRoutes);
@@ -151,6 +153,7 @@ app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', offlinePrescriptionRoutes);
 app.use('/api/v1', medicineRoutes);
 app.use('/api/v1', analyticsRoutes);
+app.use('/api/v1', opdQueueRoutes);
 
 // Serve uploads statically for local storage fallback
 app.use('/uploads', express.static(path.resolve('uploads')));

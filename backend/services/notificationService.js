@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import fs from 'fs';
 import path from 'path';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_1234567890');
 const FROM = process.env.RESEND_FROM || 'Neuro Harmony <onboarding@resend.dev>';
 
 // ─── Beautiful HTML Email Templates ───────────────────────────────────────────

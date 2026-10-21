@@ -197,11 +197,39 @@ export async function loginDoctor(req, res, next) {
   }
 
   try {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check for Front Desk / Receptionist staff login
+    if (cleanEmail === 'reception@neuroharmony.in' || cleanEmail === 'reception') {
+      if (password === 'reception123' || password === 'reception') {
+        const secret = process.env.JWT_ACCESS_SECRET || 'jwt_access_secret_neuro_harmony';
+        const token = jwt.sign(
+          {
+            id: 'reception-staff-session',
+            email: 'reception@neuroharmony.in',
+            role: 'RECEPTIONIST'
+          },
+          secret,
+          { expiresIn: '24h' }
+        );
+        return res.status(200).json({
+          success: true,
+          token,
+          user: {
+            id: 'reception-staff-session',
+            name: 'Front Desk / Reception',
+            email: 'reception@neuroharmony.in',
+            role: 'RECEPTIONIST'
+          }
+        });
+      }
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: cleanEmail }
     });
 
-    if (!user || user.role !== 'DOCTOR') {
+    if (!user || (user.role !== 'DOCTOR' && user.role !== 'RECEPTIONIST' && user.role !== 'ADMIN')) {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password.'
@@ -221,7 +249,7 @@ export async function loginDoctor(req, res, next) {
       {
         id: user.id,
         email: user.email,
-        role: 'DOCTOR'
+        role: user.role
       },
       secret,
       { expiresIn: '24h' }
