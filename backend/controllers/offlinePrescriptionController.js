@@ -2,10 +2,25 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+let privateNotesColumnChecked = false;
+async function ensurePrivateNotesColumn() {
+  if (privateNotesColumnChecked) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "offline_prescriptions" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;
+    `);
+    privateNotesColumnChecked = true;
+  } catch (err) {
+    console.warn('ensurePrivateNotesColumn notice:', err.message);
+  }
+}
+
 /**
  * Create or update an offline prescription.
  */
 export async function createOfflinePrescription(req, res) {
+  await ensurePrivateNotesColumn();
+
   const {
     id,
     patientName,
@@ -113,17 +128,57 @@ export async function createOfflinePrescription(req, res) {
     };
 
     let prescription;
-    if (id) {
-      // Update existing
-      prescription = await prisma.offlinePrescription.update({
-        where: { id },
-        data
-      });
-    } else {
-      // Create new
-      prescription = await prisma.offlinePrescription.create({
-        data
-      });
+    try {
+      if (id) {
+        // Update existing
+        prescription = await prisma.offlinePrescription.update({
+          where: { id },
+          data
+        });
+      } else {
+        // Create new
+        prescription = await prisma.offlinePrescription.create({
+          data
+        });
+      }
+    } catch (saveErr) {
+      console.warn('Initial offline prescription save failed, attempting ALTER TABLE fix:', saveErr.message);
+      try {
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE "offline_prescriptions" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;
+        `);
+      } catch (alterErr) {
+        console.warn('ALTER TABLE notice:', alterErr.message);
+      }
+
+      try {
+        // Retry with privateNotes
+        if (id) {
+          prescription = await prisma.offlinePrescription.update({
+            where: { id },
+            data
+          });
+        } else {
+          prescription = await prisma.offlinePrescription.create({
+            data
+          });
+        }
+      } catch (retryErr) {
+        console.warn('Second save attempt failed, saving fallback without privateNotes:', retryErr.message);
+        // Fallback: save without privateNotes so patient prescription is NEVER lost
+        const fallbackData = { ...data };
+        delete fallbackData.privateNotes;
+        if (id) {
+          prescription = await prisma.offlinePrescription.update({
+            where: { id },
+            data: fallbackData
+          });
+        } else {
+          prescription = await prisma.offlinePrescription.create({
+            data: fallbackData
+          });
+        }
+      }
     }
 
     // Auto-save any new prescribed medicines into doctor's medicine database
@@ -190,6 +245,8 @@ export async function createOfflinePrescription(req, res) {
  * Get all offline prescriptions for the authenticated doctor.
  */
 export async function getOfflinePrescriptions(req, res) {
+  await ensurePrivateNotesColumn();
+
   try {
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId: req.user.id }
@@ -202,10 +259,24 @@ export async function getOfflinePrescriptions(req, res) {
       });
     }
 
-    const prescriptions = await prisma.offlinePrescription.findMany({
-      where: { doctorId: doctorProfile.id },
-      orderBy: { createdAt: 'desc' }
-    });
+    let prescriptions;
+    try {
+      prescriptions = await prisma.offlinePrescription.findMany({
+        where: { doctorId: doctorProfile.id },
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (findErr) {
+      console.warn('findMany failed, ensuring private_notes column exists:', findErr.message);
+      try {
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE "offline_prescriptions" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;
+        `);
+      } catch (e) {}
+      prescriptions = await prisma.offlinePrescription.findMany({
+        where: { doctorId: doctorProfile.id },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
 
     return res.status(200).json({
       success: true,

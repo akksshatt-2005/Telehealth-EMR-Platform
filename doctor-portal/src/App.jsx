@@ -3967,11 +3967,11 @@ export default function App() {
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.45rem',
+                  gap: '0.4rem',
                   backgroundColor: '#fffbeb',
                   border: '1.5px solid #fde68a',
                   borderRadius: '8px',
-                  padding: '0.85rem',
+                  padding: '0.75rem 0.85rem',
                   boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -3982,11 +3982,8 @@ export default function App() {
                       👁️ Only visible to you • Never printed on Rx
                     </span>
                   </div>
-                  <p style={{ margin: '0.1rem 0 0.2rem 0', fontSize: '0.73rem', color: '#78350f', lineHeight: 1.35 }}>
-                    Confidential doctor-only remarks (e.g. <em>Referred by Dr. Sharma</em>, private clinical observations, patient background, or personal follow-up reminders).
-                  </p>
                   <textarea 
-                    placeholder="e.g. Referred by Dr. Rajesh Sharma (Neurology). Patient history of migraine with aura. Monitor response to dosage."
+                    placeholder="e.g. Referred by Dr. Sharma, private clinical observations, reminders..."
                     rows="2"
                     value={offlineForm.privateNotes || ''}
                     onChange={e => setOfflineForm(prev => ({ ...prev, privateNotes: e.target.value }))}
