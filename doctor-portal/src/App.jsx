@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -234,6 +234,9 @@ export default function App() {
   const [showQuickLookupDropdown, setShowQuickLookupDropdown] = useState(false);
   const [tempMed, setTempMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
   const [rxAutoSaveNotice, setRxAutoSaveNotice] = useState(null);
+  const medNameInputRef = useRef(null);
+  const medDosageInputRef = useRef(null);
+  const medFrequencyInputRef = useRef(null);
   const [offlineForm, setOfflineForm] = useState({
     referenceId: '',
     patientName: '',
@@ -1270,6 +1273,11 @@ export default function App() {
     // Clear inputs and search dropdown
     setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
     setActiveSearchIndex(null);
+
+    // Auto-focus back on medicine name input so doctor can immediately type next medicine
+    setTimeout(() => {
+      medNameInputRef.current?.focus();
+    }, 50);
 
     // Auto-save to Medicine Database if token is present
     if (token) {
@@ -2973,7 +2981,16 @@ export default function App() {
             <div className="workspace-split" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', alignItems: 'start' }}>
               
               {/* Form Input Panel */}
-              <form onSubmit={saveOfflinePrescription} className="glass-panel no-print" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
+              <form 
+                onSubmit={saveOfflinePrescription} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                  }
+                }}
+                className="glass-panel no-print" 
+                style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-md)' }}
+              >
                 
                 {/* Header: Edit / View Past Record vs Create New Prescription */}
                 {selectedOfflineRxId ? (
@@ -3536,6 +3553,7 @@ export default function App() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Medicine Name</label>
                         <input 
+                          ref={medNameInputRef}
                           type="text" 
                           placeholder="e.g. Tab. Paracetamol 650mg"
                           value={tempMed.name}
@@ -3548,6 +3566,19 @@ export default function App() {
                             setTimeout(() => {
                               setActiveSearchIndex(null);
                             }, 150);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (tempMed.name.trim()) {
+                                if (tempMed.dosage || tempMed.frequency) {
+                                  handleAddMedicineToRx();
+                                } else {
+                                  medDosageInputRef.current?.focus();
+                                }
+                              }
+                            }
                           }}
                           style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                         />
@@ -3590,6 +3621,9 @@ export default function App() {
                                       frequency: tempMed.frequency || ''
                                     });
                                     setActiveSearchIndex(null);
+                                    setTimeout(() => {
+                                      medFrequencyInputRef.current?.focus();
+                                    }, 50);
                                   }}
                                   style={{
                                     padding: '0.5rem 0.75rem',
@@ -3629,6 +3663,13 @@ export default function App() {
                           placeholder="Composition (Optional)"
                           value={tempMed.composition}
                           onChange={e => setTempMed(prev => ({ ...prev, composition: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              medDosageInputRef.current?.focus();
+                            }
+                          }}
                           style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                         />
                       </div>
@@ -3638,16 +3679,25 @@ export default function App() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Dosage</label>
                           <input 
+                            ref={medDosageInputRef}
                             type="text" 
                             placeholder="e.g. 1 Tablet (Optional)"
                             value={tempMed.dosage}
                             onChange={e => setTempMed(prev => ({ ...prev, dosage: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                medFrequencyInputRef.current?.focus();
+                              }
+                            }}
                             style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                           />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Frequency & Instructions</label>
                           <input 
+                            ref={medFrequencyInputRef}
                             type="text" 
                             placeholder="e.g. 1-0-1 (after meals)"
                             value={tempMed.frequency}
@@ -3655,6 +3705,7 @@ export default function App() {
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 handleAddMedicineToRx();
                               }
                             }}
