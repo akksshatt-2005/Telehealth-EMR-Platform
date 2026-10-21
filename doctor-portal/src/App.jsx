@@ -283,6 +283,22 @@ export default function App() {
     privateNotes: ''
   });
 
+  // Real-time cross-tab synchronization for OPD queue (between Receptionist and Doctor tabs)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'cached_opd_queue' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setOpdQueue(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const [offlineLayout, setOfflineLayout] = useState({
     pageWidth: 800,  // px
     pageHeight: 1120, // px
@@ -620,9 +636,29 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success && Array.isArray(data.queue)) {
-        setOpdQueue(data.queue);
+        // Merge server queue with any local pending items to prevent data loss
+        let merged = [...data.queue];
         try {
-          localStorage.setItem('cached_opd_queue', JSON.stringify(data.queue));
+          const saved = localStorage.getItem('cached_opd_queue');
+          if (saved) {
+            const localList = JSON.parse(saved);
+            if (Array.isArray(localList)) {
+              localList.forEach(localItem => {
+                if (String(localItem.id).startsWith('local-') && localItem.status !== 'COMPLETED') {
+                  const alreadyIn = merged.some(m => m.id === localItem.id || (m.patient_name === localItem.patient_name && m.token_number === localItem.token_number));
+                  if (!alreadyIn) {
+                    merged.push(localItem);
+                  }
+                }
+              });
+            }
+          }
+        } catch (e) {}
+
+        merged.sort((a, b) => (a.token_number || 0) - (b.token_number || 0));
+        setOpdQueue(merged);
+        try {
+          localStorage.setItem('cached_opd_queue', JSON.stringify(merged));
         } catch (e) {}
       } else {
         // Fallback to local cache if server is offline or returned error
@@ -2771,8 +2807,8 @@ export default function App() {
         {dashboardView === 'offline-rx' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
-            {/* Front Desk Live OPD Queue Section for Doctor */}
-            {opdQueue.filter(p => p.status === 'WAITING' || p.status === 'IN_CONSULTATION').length > 0 && (
+            {/* Front Desk Live OPD Queue Section for Doctor (Always Visible) */}
+            {opdQueue.filter(p => p.status === 'WAITING' || p.status === 'IN_CONSULTATION').length > 0 ? (
               <div className="no-print" style={{ backgroundColor: '#f0fdfa', border: '2px solid #0f766e', borderRadius: '12px', padding: '1rem 1.25rem', boxShadow: '0 4px 12px rgba(15,118,110,0.08)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -2869,6 +2905,24 @@ export default function App() {
                     );
                   })}
                 </div>
+              </div>
+            ) : (
+              <div className="no-print" style={{ backgroundColor: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '10px', padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '1.25rem' }}>👥</span>
+                  <div>
+                    <strong style={{ fontSize: '0.92rem', color: '#334155' }}>Front Desk Live OPD Queue:</strong>
+                    <span style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '0.4rem' }}>0 walk-in patients waiting outside cabin right now</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchOpdQueue}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
+                >
+                  ↻ Sync Queue
+                </button>
               </div>
             )}
 
@@ -3009,7 +3063,7 @@ export default function App() {
                 <div className="glass-panel no-print" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '85vh', overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
               
               {/* Tab Header Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--neutral-border)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--neutral-border)', paddingBottom: '0.5rem', marginBottom: '0.25rem', gap: '0.25rem' }}>
                 <button 
                   type="button"
                   onClick={() => setActiveSidebarTab('prescriptions')}
@@ -3018,7 +3072,7 @@ export default function App() {
                     background: 'transparent',
                     border: 'none',
                     padding: '0.4rem 0',
-                    fontSize: '0.8rem',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     color: activeSidebarTab === 'prescriptions' ? 'var(--primary)' : 'var(--neutral-body)',
                     borderBottom: activeSidebarTab === 'prescriptions' ? '2px solid var(--primary)' : '2px solid transparent',
@@ -3030,13 +3084,40 @@ export default function App() {
                 </button>
                 <button 
                   type="button"
+                  onClick={() => setActiveSidebarTab('queue')}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0.4rem 0',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: activeSidebarTab === 'queue' ? 'var(--primary)' : 'var(--neutral-body)',
+                    borderBottom: activeSidebarTab === 'queue' ? '2px solid var(--primary)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.2rem'
+                  }}
+                >
+                  <span>👥 Queue</span>
+                  {opdQueue.filter(p => p.status === 'WAITING').length > 0 && (
+                    <span style={{ backgroundColor: '#ef4444', color: '#ffffff', borderRadius: '10px', padding: '0.05rem 0.35rem', fontSize: '0.65rem', fontWeight: 800 }}>
+                      {opdQueue.filter(p => p.status === 'WAITING').length}
+                    </span>
+                  )}
+                </button>
+                <button 
+                  type="button"
                   onClick={() => setActiveSidebarTab('inventory')}
                   style={{
                     flex: 1,
                     background: 'transparent',
                     border: 'none',
                     padding: '0.4rem 0',
-                    fontSize: '0.8rem',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     color: activeSidebarTab === 'inventory' ? 'var(--primary)' : 'var(--neutral-body)',
                     borderBottom: activeSidebarTab === 'inventory' ? '2px solid var(--primary)' : '2px solid transparent',
@@ -3044,7 +3125,7 @@ export default function App() {
                     outline: 'none'
                   }}
                 >
-                  💊 Medicine DB
+                  💊 Meds
                 </button>
               </div>
 
@@ -3133,6 +3214,77 @@ export default function App() {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeSidebarTab === 'queue' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--neutral-border)' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f766e' }}>
+                      Today's Live Queue ({opdQueue.length})
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={fetchOpdQueue} 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
+                    >
+                      ↻ Sync
+                    </button>
+                  </div>
+
+                  {opdQueue.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic' }}>
+                      No walk-in patients checked in yet today.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      {opdQueue.map(qPatient => {
+                        const isConsulting = qPatient.status === 'IN_CONSULTATION' || activeConsultingQueueId === qPatient.id;
+                        const isDone = qPatient.status === 'COMPLETED';
+                        return (
+                          <div 
+                            key={qPatient.id}
+                            style={{
+                              padding: '0.65rem',
+                              borderRadius: '8px',
+                              backgroundColor: isConsulting ? '#eff6ff' : isDone ? '#f8fafc' : '#f0fdfa',
+                              border: isConsulting ? '1.5px solid #2563eb' : isDone ? '1px solid #e2e8f0' : '1.5px solid #0f766e',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.35rem',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: 800, fontSize: '0.75rem', color: isConsulting ? '#1d4ed8' : isDone ? '#64748b' : '#0f766e' }}>
+                                Token #{qPatient.token_number} • {isDone ? 'Completed' : isConsulting ? 'In Cabin' : 'Waiting'}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                Ref: {qPatient.reference_id || 'N/A'}
+                              </span>
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>
+                              {qPatient.patient_name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              {qPatient.patient_age} Yrs / {qPatient.patient_gender} {qPatient.patient_phone ? `• 📞 ${qPatient.patient_phone}` : ''}
+                            </div>
+                            {!isDone && (
+                              <button
+                                type="button"
+                                onClick={() => startConsultationFromQueue(qPatient)}
+                                className="btn btn-primary"
+                                style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem', marginTop: '0.2rem', backgroundColor: isConsulting ? '#2563eb' : '#0f766e' }}
+                              >
+                                ⚡ {isConsulting ? 'Consulting (Loaded)' : 'Consult Patient'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

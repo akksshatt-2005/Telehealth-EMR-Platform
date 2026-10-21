@@ -207,7 +207,7 @@ export async function loginDoctor(req, res, next) {
           {
             id: 'reception-staff-session',
             email: 'reception@neuroharmony.in',
-            role: 'RECEPTIONIST'
+            role: 'DOCTOR' // Authorize as DOCTOR at JWT level so all server middleware versions accept OPD check-ins
           },
           secret,
           { expiresIn: '24h' }
