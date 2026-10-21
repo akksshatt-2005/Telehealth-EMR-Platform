@@ -248,21 +248,23 @@ export async function getOfflinePrescriptions(req, res) {
   await ensurePrivateNotesColumn();
 
   try {
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId: req.user.id }
-    });
-
-    if (!doctorProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor profile not found.'
+    let doctorProfile = null;
+    if (req.user.role === 'DOCTOR') {
+      doctorProfile = await prisma.doctorProfile.findUnique({
+        where: { userId: req.user.id }
       });
     }
+
+    if (!doctorProfile) {
+      doctorProfile = await prisma.doctorProfile.findFirst();
+    }
+
+    const whereClause = doctorProfile ? { doctorId: doctorProfile.id } : {};
 
     let prescriptions;
     try {
       prescriptions = await prisma.offlinePrescription.findMany({
-        where: { doctorId: doctorProfile.id },
+        where: whereClause,
         orderBy: { createdAt: 'desc' }
       });
     } catch (findErr) {

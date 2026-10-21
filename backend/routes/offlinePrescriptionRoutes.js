@@ -9,8 +9,8 @@ import {
 
 const router = express.Router();
 
-// Require both authentication and DOCTOR role for all offline prescription endpoints
-router.use(requireAuth, requireRole('DOCTOR'));
+// Require authentication and DOCTOR or RECEPTIONIST role for offline prescription endpoints
+router.use(requireAuth, requireRole('DOCTOR', 'RECEPTIONIST'));
 
 router.get('/doctor/offline-prescriptions/next-reference', getNextReferenceId);
 router.post('/doctor/offline-prescriptions', createOfflinePrescription);

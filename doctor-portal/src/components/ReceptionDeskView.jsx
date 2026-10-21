@@ -58,49 +58,71 @@ export default function ReceptionDeskView({
   // Search for existing patients when searchQuery changes
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (q.length < 2) {
+    if (!q || q.length < 1) {
       setSearchResults([]);
       return;
     }
 
+    const serialPart = q.split('/')[0].trim();
+
+    // 1. Instant synchronous local search across offlineRxList & cached_offline_prescriptions
+    let pool = (Array.isArray(offlineRxList) && offlineRxList.length > 0) ? [...offlineRxList] : [];
+    if (pool.length === 0) {
+      try {
+        const saved = localStorage.getItem('cached_offline_prescriptions');
+        if (saved) pool = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    const localMatches = pool.filter(rx => {
+      const pPhone = (rx.patientPhone || '').toLowerCase().trim();
+      const pName = (rx.patientName || '').toLowerCase().trim();
+      const pRef = (rx.referenceId || '').toLowerCase().trim();
+      const pSerial = pRef.split('/')[0].trim();
+      return (
+        pRef === q ||
+        pRef.includes(q) ||
+        pSerial === serialPart ||
+        pSerial === q ||
+        pName.includes(q) ||
+        pPhone.includes(q)
+      );
+    });
+
+    const seen = new Set();
+    const uniqueLocal = [];
+    for (const rx of localMatches) {
+      const key = `${(rx.patientName || '').toLowerCase().trim()}_${(rx.referenceId || '').trim()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueLocal.push(rx);
+      }
+    }
+
+    // Set immediate results so user sees suggestions in 0ms!
+    if (uniqueLocal.length > 0) {
+      setSearchResults(uniqueLocal.slice(0, 8));
+    }
+
+    // 2. Also query backend in parallel
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // Try backend patient search endpoint
         const res = await fetch(`${API_BASE_URL}/opd/search-patients?q=${encodeURIComponent(q)}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-
         if (data.success && Array.isArray(data.patients) && data.patients.length > 0) {
           setSearchResults(data.patients);
-        } else {
-          // Fallback to searching local offlineRxList if backend returned empty
-          const localMatches = (offlineRxList || []).filter(rx => {
-            const pPhone = (rx.patientPhone || '').toLowerCase();
-            const pName = (rx.patientName || '').toLowerCase();
-            const pRef = (rx.referenceId || '').toLowerCase();
-            return pPhone.includes(q) || pName.includes(q) || pRef.includes(q);
-          });
-
-          // Group by name + ref to remove duplicates
-          const seen = new Set();
-          const uniqueMatches = [];
-          for (const rx of localMatches) {
-            const key = `${rx.patientName.toLowerCase()}_${rx.referenceId || ''}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              uniqueMatches.push(rx);
-            }
-          }
-          setSearchResults(uniqueMatches.slice(0, 8));
+        } else if (uniqueLocal.length === 0) {
+          setSearchResults([]);
         }
       } catch (err) {
         console.warn('Patient search error:', err);
       } finally {
         setIsSearching(false);
       }
-    }, 250);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [searchQuery, offlineRxList]);
@@ -385,14 +407,32 @@ export default function ReceptionDeskView({
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="e.g. 9307647137 or Mohd Sayed..."
+                  placeholder="e.g. 129 or 129/2026 or 9307647137 or Mohd Sayed..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '2px solid #0f766e', fontSize: '0.92rem', backgroundColor: '#f0fdfa' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchResults.length === 1) {
+                      e.preventDefault();
+                      handleSelectPatient(searchResults[0]);
+                    }
+                  }}
+                  style={{ width: '100%', padding: '0.65rem 2.5rem 0.65rem 0.85rem', borderRadius: '8px', border: '2px solid #0f766e', fontSize: '0.92rem', backgroundColor: '#f0fdfa' }}
                 />
-                {isSearching && (
-                  <span style={{ position: 'absolute', right: '12px', top: '10px', fontSize: '0.8rem', color: '#0f766e' }}>Searching...</span>
-                )}
+                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {isSearching && (
+                    <span style={{ fontSize: '0.78rem', color: '#0f766e' }}>Searching...</span>
+                  )}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '0.9rem', padding: '0.2rem' }}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Family Members / Existing Patients Found Card */}
@@ -400,7 +440,7 @@ export default function ReceptionDeskView({
                 <div style={{ marginTop: '0.75rem', backgroundColor: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '8px', padding: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
                     <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1d4ed8' }}>
-                      ✨ Found {searchResults.length} registered patient(s) for "{searchQuery}":
+                      ✨ Found {searchResults.length} registered patient(s) matching "{searchQuery}":
                     </span>
                     <button 
                       type="button" 
@@ -418,9 +458,9 @@ export default function ReceptionDeskView({
                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 0.75rem', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #dbeafe' }}
                       >
                         <div>
-                          <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{patient.patientName}</strong>
+                          <strong style={{ color: '#0f172a', fontSize: '0.92rem' }}>{patient.patientName}</strong>
                           <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: '0.4rem' }}>
-                            ({patient.patientAge} Yrs / {patient.patientGender}) • Ref: <span style={{ color: '#0f766e', fontWeight: 700 }}>{patient.referenceId || 'N/A'}</span>
+                            ({patient.patientAge} Yrs / {patient.patientGender}) • Ref: <span style={{ color: '#0f766e', fontWeight: 800 }}>{patient.referenceId || 'N/A'}</span>
                           </span>
                           {patient.patientPhone && (
                             <div style={{ fontSize: '0.74rem', color: '#64748b' }}>📞 {patient.patientPhone}</div>
@@ -431,7 +471,7 @@ export default function ReceptionDeskView({
                           type="button"
                           onClick={() => handleSelectPatient(patient)}
                           className="btn btn-primary"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', backgroundColor: '#2563eb' }}
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', backgroundColor: '#2563eb', fontWeight: 700 }}
                         >
                           ➕ Select for Visit
                         </button>
@@ -450,6 +490,14 @@ export default function ReceptionDeskView({
                       👤 Register New Family Member with this Phone
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* No results note */}
+              {searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
+                <div style={{ marginTop: '0.6rem', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>ℹ️</span>
+                  <span>No existing patient record found for "<strong>{searchQuery}</strong>". You can register them as a new walk-in patient below.</span>
                 </div>
               )}
 

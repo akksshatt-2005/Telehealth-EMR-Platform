@@ -228,8 +228,14 @@ export default function App() {
   // Dashboard view toggle and Offline prescription maker state
   const [dashboardView, setDashboardView] = useState('appointments'); // 'appointments' or 'offline-rx'
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeSearchIndex, setActiveSearchIndex] = useState(null);
-  const [offlineRxList, setOfflineRxList] = useState([]);
+  const [offlineRxList, setOfflineRxList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cached_offline_prescriptions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [loadingOfflineRx, setLoadingOfflineRx] = useState(false);
   const [selectedOfflineRxId, setSelectedOfflineRxId] = useState(null);
   const [originalConsultDate, setOriginalConsultDate] = useState('');
@@ -693,6 +699,9 @@ export default function App() {
       const data = await response.json();
       if (data.success) {
         setOfflineRxList(data.prescriptions);
+        try {
+          localStorage.setItem('cached_offline_prescriptions', JSON.stringify(data.prescriptions));
+        } catch (e) {}
       } else {
         console.error('Failed to fetch offline prescriptions:', data.message);
       }

@@ -304,7 +304,7 @@ export async function deleteQueueItem(req, res) {
 export async function searchPatients(req, res) {
   const query = (req.query.q || '').trim();
 
-  if (!query || query.length < 2) {
+  if (!query || query.length < 1) {
     return res.status(200).json({
       success: true,
       patients: []
@@ -312,31 +312,47 @@ export async function searchPatients(req, res) {
   }
 
   try {
-    const patients = await prisma.$queryRawUnsafe(`
-      SELECT DISTINCT ON (LOWER(TRIM(patient_name)), TRIM(COALESCE(reference_id, '')))
-        reference_id AS "referenceId",
-        patient_name AS "patientName",
-        patient_phone AS "patientPhone",
-        patient_age AS "patientAge",
-        patient_gender AS "patientGender",
-        chief_complaints AS "chiefComplaints",
-        bp,
-        pulse,
-        weight,
-        created_at AS "createdAt",
-        consult_date AS "consultDate"
-      FROM "offline_prescriptions"
-      WHERE 
-        patient_phone ILIKE '%' || $1 || '%'
-        OR patient_name ILIKE '%' || $1 || '%'
-        OR reference_id ILIKE '%' || $1 || '%'
-      ORDER BY LOWER(TRIM(patient_name)), TRIM(COALESCE(reference_id, '')), created_at DESC
-      LIMIT 12;
-    `, query);
+    const serial = query.split('/')[0].trim();
+
+    const prescriptions = await prisma.offlinePrescription.findMany({
+      where: {
+        OR: [
+          { referenceId: { contains: query, mode: 'insensitive' } },
+          { referenceId: { startsWith: `${serial}/` } },
+          { referenceId: { equals: query, mode: 'insensitive' } },
+          { patientName: { contains: query, mode: 'insensitive' } },
+          { patientPhone: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30
+    });
+
+    const seen = new Set();
+    const patients = [];
+    for (const rx of prescriptions) {
+      const key = `${(rx.patientName || '').toLowerCase().trim()}_${(rx.referenceId || '').trim()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        patients.push({
+          referenceId: rx.referenceId,
+          patientName: rx.patientName,
+          patientPhone: rx.patientPhone,
+          patientAge: rx.patientAge,
+          patientGender: rx.patientGender,
+          chiefComplaints: rx.chiefComplaints,
+          bp: rx.bp,
+          pulse: rx.pulse,
+          weight: rx.weight,
+          createdAt: rx.createdAt,
+          consultDate: rx.consultDate
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,
-      patients
+      patients: patients.slice(0, 12)
     });
   } catch (error) {
     console.error('Error in searchPatients:', error);
