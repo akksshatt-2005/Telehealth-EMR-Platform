@@ -124,6 +124,53 @@ export async function createOfflinePrescription(req, res) {
       });
     }
 
+    // Auto-save any new prescribed medicines into doctor's medicine database
+    if (Array.isArray(medications) && medications.length > 0) {
+      for (const med of medications) {
+        if (med && typeof med.name === 'string' && med.name.trim()) {
+          const medName = med.name.trim();
+          try {
+            const existingMed = await prisma.medicine.findFirst({
+              where: {
+                doctorId: doctorProfile.id,
+                name: {
+                  equals: medName,
+                  mode: 'insensitive'
+                }
+              }
+            });
+
+            if (!existingMed) {
+              await prisma.medicine.create({
+                data: {
+                  doctorId: doctorProfile.id,
+                  name: medName,
+                  dosage: med.dosage && typeof med.dosage === 'string' && med.dosage.trim() ? med.dosage.trim() : null,
+                  composition: med.composition && typeof med.composition === 'string' && med.composition.trim() ? med.composition.trim() : null
+                }
+              });
+            } else {
+              const enrichData = {};
+              if (!existingMed.dosage && med.dosage && typeof med.dosage === 'string' && med.dosage.trim()) {
+                enrichData.dosage = med.dosage.trim();
+              }
+              if (!existingMed.composition && med.composition && typeof med.composition === 'string' && med.composition.trim()) {
+                enrichData.composition = med.composition.trim();
+              }
+              if (Object.keys(enrichData).length > 0) {
+                await prisma.medicine.update({
+                  where: { id: existingMed.id },
+                  data: enrichData
+                });
+              }
+            }
+          } catch (syncErr) {
+            console.error(`Failed to auto-sync medicine "${medName}":`, syncErr);
+          }
+        }
+      }
+    }
+
     return res.status(200).json({
       success: true,
       prescription

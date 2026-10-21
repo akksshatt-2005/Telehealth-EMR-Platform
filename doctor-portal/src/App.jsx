@@ -233,6 +233,7 @@ export default function App() {
   const [quickLookupQuery, setQuickLookupQuery] = useState('');
   const [showQuickLookupDropdown, setShowQuickLookupDropdown] = useState(false);
   const [tempMed, setTempMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
+  const [rxAutoSaveNotice, setRxAutoSaveNotice] = useState(null);
   const [offlineForm, setOfflineForm] = useState({
     referenceId: '',
     patientName: '',
@@ -997,6 +998,7 @@ export default function App() {
         setOriginalConsultDate(data.prescription.consultDate ? data.prescription.consultDate.split('T')[0] : '');
         setOfflineForm(prev => ({ ...prev, referenceId: data.prescription.referenceId || '' }));
         fetchOfflinePrescriptions();
+        fetchMedicines();
         return true;
       } else {
         alert(data.message || 'Failed to save offline prescription.');
@@ -1245,6 +1247,68 @@ export default function App() {
     }));
   };
 
+  // Add medicine to current offline prescription AND auto-save/sync to medicine database
+  const handleAddMedicineToRx = async () => {
+    if (!tempMed.name || !tempMed.name.trim()) {
+      alert('Please fill in the Medicine Name before adding.');
+      return;
+    }
+
+    const medToAdd = {
+      name: tempMed.name.trim(),
+      composition: tempMed.composition ? tempMed.composition.trim() : '',
+      dosage: tempMed.dosage ? tempMed.dosage.trim() : '',
+      frequency: tempMed.frequency ? tempMed.frequency.trim() : ''
+    };
+
+    // Immediately add to offline prescription for responsive UI
+    setOfflineForm(prev => ({
+      ...prev,
+      medications: [...prev.medications, medToAdd]
+    }));
+
+    // Clear inputs and search dropdown
+    setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
+    setActiveSearchIndex(null);
+
+    // Auto-save to Medicine Database if token is present
+    if (token) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/doctor/medicines`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: medToAdd.name,
+            composition: medToAdd.composition || null,
+            dosage: medToAdd.dosage || null
+          })
+        });
+
+        const data = await response.json();
+        if (data.success && data.medicine) {
+          setMedicinesList(prev => {
+            const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
+            if (exists) {
+              return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
+            }
+            return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
+          });
+        }
+      } catch (err) {
+        console.error('Error auto-saving medicine to database:', err);
+      }
+    }
+
+    // Show temporary confirmation badge
+    setRxAutoSaveNotice(`"${medToAdd.name}" added to Rx & saved to Medicine Database!`);
+    setTimeout(() => {
+      setRxAutoSaveNotice(prev => (prev && prev.includes(medToAdd.name) ? null : prev));
+    }, 3500);
+  };
+
   // Start editing an added medicine
   const startEditOfflineMed = (index) => {
     const target = offlineForm.medications[index];
@@ -1259,18 +1323,55 @@ export default function App() {
   };
 
   // Save changes to an edited medicine
-  const saveEditOfflineMed = (index) => {
+  const saveEditOfflineMed = async (index) => {
     if (!editingOfflineMed.name.trim()) {
       alert('Please provide a valid Medicine Name.');
       return;
     }
+    const updatedMed = {
+      name: editingOfflineMed.name.trim(),
+      composition: editingOfflineMed.composition ? editingOfflineMed.composition.trim() : '',
+      dosage: editingOfflineMed.dosage ? editingOfflineMed.dosage.trim() : '',
+      frequency: editingOfflineMed.frequency ? editingOfflineMed.frequency.trim() : ''
+    };
+
     setOfflineForm(prev => {
       const updated = [...(prev.medications || [])];
-      updated[index] = { ...editingOfflineMed };
+      updated[index] = updatedMed;
       return { ...prev, medications: updated };
     });
     setEditingOfflineMedIndex(null);
     setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
+
+    // Auto-save/update edited medicine in database if token exists
+    if (token) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/doctor/medicines`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: updatedMed.name,
+            composition: updatedMed.composition || null,
+            dosage: updatedMed.dosage || null
+          })
+        });
+        const data = await response.json();
+        if (data.success && data.medicine) {
+          setMedicinesList(prev => {
+            const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
+            if (exists) {
+              return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
+            }
+            return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
+          });
+        }
+      } catch (err) {
+        console.error('Error auto-saving edited medicine to DB:', err);
+      }
+    }
   };
 
   // Cancel editing an added medicine
@@ -3551,6 +3652,12 @@ export default function App() {
                             placeholder="e.g. 1-0-1 (after meals)"
                             value={tempMed.frequency}
                             onChange={e => setTempMed(prev => ({ ...prev, frequency: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddMedicineToRx();
+                              }
+                            }}
                             style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                           />
                         </div>
@@ -3559,22 +3666,31 @@ export default function App() {
                       {/* Add to Prescription Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!tempMed.name.trim()) {
-                            alert('Please fill in the Medicine Name before adding.');
-                            return;
-                          }
-                          setOfflineForm(prev => ({
-                            ...prev,
-                            medications: [...prev.medications, { ...tempMed }]
-                          }));
-                          setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
-                        }}
+                        onClick={handleAddMedicineToRx}
                         className="btn btn-primary"
                         style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', fontSize: '0.85rem', marginTop: '0.25rem' }}
                       >
                         ➕ Add to Prescription (Rx)
                       </button>
+
+                      {/* Auto-save confirmation notice */}
+                      {rxAutoSaveNotice && (
+                        <div style={{
+                          padding: '0.45rem 0.65rem',
+                          backgroundColor: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          borderRadius: '6px',
+                          color: '#065f46',
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontWeight: 600
+                        }}>
+                          <span>✓</span>
+                          <span>{rxAutoSaveNotice}</span>
+                        </div>
+                      )}
 
                     </div>
                   </div>

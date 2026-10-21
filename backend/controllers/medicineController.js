@@ -27,24 +27,45 @@ export async function addMedicine(req, res) {
       });
     }
 
-    const medicine = await prisma.medicine.upsert({
+    const trimmedName = name.trim();
+    const existing = await prisma.medicine.findFirst({
       where: {
-        doctorId_name: {
-          doctorId: doctorProfile.id,
-          name: name.trim()
-        }
-      },
-      update: {
-        dosage: dosage ? dosage.trim() : null,
-        composition: composition ? composition.trim() : null
-      },
-      create: {
         doctorId: doctorProfile.id,
-        name: name.trim(),
-        dosage: dosage ? dosage.trim() : null,
-        composition: composition ? composition.trim() : null
+        name: {
+          equals: trimmedName,
+          mode: 'insensitive'
+        }
       }
     });
+
+    let medicine;
+    if (existing) {
+      const updateData = {};
+      if (dosage !== undefined && dosage !== null && typeof dosage === 'string' && dosage.trim() !== '') {
+        updateData.dosage = dosage.trim();
+      }
+      if (composition !== undefined && composition !== null && typeof composition === 'string' && composition.trim() !== '') {
+        updateData.composition = composition.trim();
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        medicine = await prisma.medicine.update({
+          where: { id: existing.id },
+          data: updateData
+        });
+      } else {
+        medicine = existing;
+      }
+    } else {
+      medicine = await prisma.medicine.create({
+        data: {
+          doctorId: doctorProfile.id,
+          name: trimmedName,
+          dosage: dosage && typeof dosage === 'string' && dosage.trim() !== '' ? dosage.trim() : null,
+          composition: composition && typeof composition === 'string' && composition.trim() !== '' ? composition.trim() : null
+        }
+      });
+    }
 
     return res.status(200).json({
       success: true,
