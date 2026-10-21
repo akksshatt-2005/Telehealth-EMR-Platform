@@ -29,10 +29,10 @@ export function requireAuth(req, res, next) {
 
 /**
  * Middleware to restrict route access by user role(s).
- * Supports single role requireRole('DOCTOR') or multiple requireRole('DOCTOR', 'RECEPTIONIST').
+ * Case-insensitive and supports multiple roles: requireRole('DOCTOR', 'RECEPTIONIST').
  */
 export function requireRole(...roles) {
-  const allowed = roles.flat();
+  const allowed = roles.flat().map(r => String(r).toUpperCase());
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -41,7 +41,8 @@ export function requireRole(...roles) {
       });
     }
 
-    if (!allowed.includes(req.user.role)) {
+    const userRole = String(req.user.role || '').toUpperCase();
+    if (!allowed.includes(userRole) && userRole !== 'ADMIN') {
       return res.status(403).json({
         success: false,
         message: 'Forbidden. You do not have permission to access this resource.'

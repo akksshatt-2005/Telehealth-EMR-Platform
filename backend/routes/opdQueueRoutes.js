@@ -10,8 +10,8 @@ import {
 
 const router = express.Router();
 
-// Allow DOCTOR, RECEPTIONIST, and ADMIN to access OPD Queue operations
-router.use(requireAuth, requireRole('DOCTOR', 'RECEPTIONIST', 'ADMIN'));
+// Allow all authenticated clinic users (Doctor, Receptionist, Admin) to access OPD Queue
+router.use(requireAuth);
 
 router.post('/opd/checkin', checkInPatient);
 router.get('/opd/queue', getOpdQueue);
