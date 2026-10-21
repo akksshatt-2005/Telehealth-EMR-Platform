@@ -210,14 +210,28 @@ const DEFAULT_SYMPTOM_TEMPLATES = [
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('doc_token') || '');
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('doc_user')) || null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('doc_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginRole, setLoginRole] = useState('DOCTOR'); // 'DOCTOR' or 'RECEPTIONIST'
 
-  const [opdQueue, setOpdQueue] = useState([]);
+  const [opdQueue, setOpdQueue] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cached_opd_queue');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [loadingOpdQueue, setLoadingOpdQueue] = useState(false);
   const [activeConsultingQueueId, setActiveConsultingQueueId] = useState(null);
 
@@ -228,6 +242,7 @@ export default function App() {
   // Dashboard view toggle and Offline prescription maker state
   const [dashboardView, setDashboardView] = useState('appointments'); // 'appointments' or 'offline-rx'
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(null);
   const [offlineRxList, setOfflineRxList] = useState(() => {
     try {
       const saved = localStorage.getItem('cached_offline_prescriptions');
@@ -606,9 +621,22 @@ export default function App() {
       const data = await res.json();
       if (data.success && Array.isArray(data.queue)) {
         setOpdQueue(data.queue);
+        try {
+          localStorage.setItem('cached_opd_queue', JSON.stringify(data.queue));
+        } catch (e) {}
+      } else {
+        // Fallback to local cache if server is offline or returned error
+        try {
+          const saved = localStorage.getItem('cached_opd_queue');
+          if (saved) setOpdQueue(JSON.parse(saved));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('fetchOpdQueue notice:', err.message);
+      try {
+        const saved = localStorage.getItem('cached_opd_queue');
+        if (saved) setOpdQueue(JSON.parse(saved));
+      } catch (e) {}
     } finally {
       setLoadingOpdQueue(false);
     }
@@ -638,16 +666,25 @@ export default function App() {
     setActiveConsultingQueueId(queuePatient.id);
     setSelectedOfflineRxId(null);
 
-    // Update status in queue to IN_CONSULTATION
+    // Update status in queue to IN_CONSULTATION locally
+    setOpdQueue(prev => {
+      const next = prev.map(item => item.id === queuePatient.id ? { ...item, status: 'IN_CONSULTATION' } : item);
+      try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+
+    // Update status in queue to IN_CONSULTATION on server if not a local draft
     try {
-      await fetch(`${API_BASE_URL}/opd/queue/${queuePatient.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: 'IN_CONSULTATION' })
-      });
+      if (!String(queuePatient.id).startsWith('local-')) {
+        await fetch(`${API_BASE_URL}/opd/queue/${queuePatient.id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: 'IN_CONSULTATION' })
+        });
+      }
       fetchOpdQueue();
     } catch (err) {
       console.warn('Queue status update error:', err);
@@ -1087,15 +1124,22 @@ export default function App() {
 
         // If this prescription was started from an OPD Queue check-in, mark it as COMPLETED
         if (activeConsultingQueueId) {
+          setOpdQueue(prev => {
+            const next = prev.map(item => item.id === activeConsultingQueueId ? { ...item, status: 'COMPLETED' } : item);
+            try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
+            return next;
+          });
           try {
-            await fetch(`${API_BASE_URL}/opd/queue/${activeConsultingQueueId}/status`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ status: 'COMPLETED' })
-            });
+            if (!String(activeConsultingQueueId).startsWith('local-')) {
+              await fetch(`${API_BASE_URL}/opd/queue/${activeConsultingQueueId}/status`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'COMPLETED' })
+              });
+            }
             setActiveConsultingQueueId(null);
             fetchOpdQueue();
           } catch (qErr) {
@@ -2203,6 +2247,7 @@ export default function App() {
         API_BASE_URL={API_BASE_URL}
         handleLogout={handleLogout}
         opdQueue={opdQueue}
+        setOpdQueue={setOpdQueue}
         fetchOpdQueue={fetchOpdQueue}
         loadingOpdQueue={loadingOpdQueue}
         offlineRxList={offlineRxList}
