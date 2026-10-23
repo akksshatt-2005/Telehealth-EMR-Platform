@@ -49,6 +49,34 @@ export default function ReceptionDeskView({
     return () => clearInterval(interval);
   }, []);
 
+  // Helper for local date comparison (YYYY-MM-DD)
+  const getLocalDateStr = (d = new Date()) => {
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${da}`;
+  };
+
+  const todayStr = getLocalDateStr();
+
+  // Filter queue strictly to today's patients
+  const todayQueue = useMemo(() => {
+    return (opdQueue || []).filter(item => {
+      if (!item.created_at) return true;
+      try {
+        return getLocalDateStr(new Date(item.created_at)) === todayStr;
+      } catch (e) {
+        return true;
+      }
+    });
+  }, [opdQueue, todayStr]);
+
+  // Calculate next token number for today (starts fresh from 1 each day)
+  const nextTokenNumber = useMemo(() => {
+    const maxToken = todayQueue.reduce((max, item) => Math.max(max, parseInt(item.token_number, 10) || 0), 0);
+    return Math.max(maxToken, todayQueue.length) + 1;
+  }, [todayQueue]);
+
   // Auto-upload any local offline queue items to the server database
   useEffect(() => {
     const unsynced = opdQueue.filter(p => String(p.id).startsWith('local-'));
@@ -351,7 +379,7 @@ export default function ReceptionDeskView({
       }
 
       if (data.success) {
-        setSuccessMessage(`✅ Patient ${formData.patientName} checked in successfully! Token #${data.item?.token_number || opdQueue.length + 1} sent to Doctor.`);
+        setSuccessMessage(`✅ Patient ${formData.patientName} checked in successfully! Token #${data.item?.token_number || nextTokenNumber} sent to Doctor.`);
         if (data.item && setOpdQueue) {
           setOpdQueue(prev => [...prev, data.item]);
         }
@@ -377,12 +405,12 @@ export default function ReceptionDeskView({
         // Resilient local fallback so receptionist is NEVER blocked even if server is redeploying
         const localItem = {
           id: `local-queue-${Date.now()}`,
-          token_number: opdQueue.length + 1,
+          token_number: nextTokenNumber,
           patient_name: formData.patientName,
           patient_phone: formData.patientPhone,
           patient_age: parseInt(formData.patientAge, 10),
           patient_gender: formData.patientGender,
-          reference_id: formData.referenceId || `${opdQueue.length + 101}/${new Date().getFullYear()}`,
+          reference_id: formData.referenceId || `${nextTokenNumber + 100}/${new Date().getFullYear()}`,
           bp: formData.bp,
           pulse: formData.pulse,
           weight: formData.weight,
@@ -422,12 +450,12 @@ export default function ReceptionDeskView({
       // Local fallback in case backend is offline
       const localItem = {
         id: `local-queue-${Date.now()}`,
-        token_number: opdQueue.length + 1,
+        token_number: nextTokenNumber,
         patient_name: formData.patientName,
         patient_phone: formData.patientPhone,
         patient_age: parseInt(formData.patientAge, 10),
         patient_gender: formData.patientGender,
-        reference_id: formData.referenceId || `${opdQueue.length + 101}/${new Date().getFullYear()}`,
+        reference_id: formData.referenceId || `${nextTokenNumber + 100}/${new Date().getFullYear()}`,
         bp: formData.bp,
         pulse: formData.pulse,
         weight: formData.weight,
@@ -493,9 +521,9 @@ export default function ReceptionDeskView({
   };
 
   // Counts
-  const waitingPatients = useMemo(() => opdQueue.filter(p => p.status === 'WAITING'), [opdQueue]);
-  const inConsultationPatients = useMemo(() => opdQueue.filter(p => p.status === 'IN_CONSULTATION'), [opdQueue]);
-  const completedPatients = useMemo(() => opdQueue.filter(p => p.status === 'COMPLETED'), [opdQueue]);
+  const waitingPatients = useMemo(() => todayQueue.filter(p => p.status === 'WAITING'), [todayQueue]);
+  const inConsultationPatients = useMemo(() => todayQueue.filter(p => p.status === 'IN_CONSULTATION'), [todayQueue]);
+  const completedPatients = useMemo(() => todayQueue.filter(p => p.status === 'COMPLETED'), [todayQueue]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
@@ -542,7 +570,7 @@ export default function ReceptionDeskView({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
           <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Checked In Today</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f766e', marginTop: '0.2rem' }}>{opdQueue.length}</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f766e', marginTop: '0.2rem' }}>{todayQueue.length}</div>
           </div>
 
           <div style={{ backgroundColor: '#fffbeb', borderRadius: '10px', padding: '1rem', border: '1px solid #fde68a', boxShadow: '0 1px 3px rgba(245,158,11,0.05)' }}>
@@ -572,7 +600,7 @@ export default function ReceptionDeskView({
                 <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f766e', fontWeight: 800 }}>📋 Patient Intake & Check-In</h3>
                 <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Enter walk-in patient information to send to Doctor's cabin</span>
               </div>
-              <span className="badge badge-info" style={{ backgroundColor: '#0f766e', color: '#fff' }}>Token #{opdQueue.length + 1}</span>
+              <span className="badge badge-info" style={{ backgroundColor: '#0f766e', color: '#fff' }}>Token #{nextTokenNumber}</span>
             </div>
 
             {/* Notification messages */}
@@ -886,7 +914,7 @@ export default function ReceptionDeskView({
                 style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 800, backgroundColor: '#0f766e', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
               >
                 <span>🚀</span>
-                <span>{submitting ? 'Sending to Doctor...' : `Check In & Send to Doctor's Cabin (Token #${opdQueue.length + 1})`}</span>
+                <span>{submitting ? 'Sending to Doctor...' : `Check In & Send to Doctor's Cabin (Token #${nextTokenNumber})`}</span>
               </button>
             </form>
 
@@ -912,7 +940,7 @@ export default function ReceptionDeskView({
             </div>
 
             {/* Queue List */}
-            {opdQueue.length === 0 ? (
+            {todayQueue.length === 0 ? (
               <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                 <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🪑</span>
                 <strong style={{ fontSize: '0.95rem', color: '#475569' }}>No Patients Checked In Yet Today</strong>
@@ -922,7 +950,7 @@ export default function ReceptionDeskView({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '680px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                {opdQueue.map((item, qIdx) => {
+                {todayQueue.map((item, qIdx) => {
                   const isWaiting = item.status === 'WAITING';
                   const isInConsultation = item.status === 'IN_CONSULTATION';
                   const isCompleted = item.status === 'COMPLETED';

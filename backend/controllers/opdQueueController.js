@@ -95,12 +95,21 @@ export async function checkInPatient(req, res) {
       finalReferenceId = `${maxSerial + 1}/${currentYear}`;
     }
 
-    // Get today's token number (count of today's checkins + 1)
-    const todayTokens = await prisma.$queryRawUnsafe(`
-      SELECT COUNT(*)::int AS count FROM "opd_queue"
-      WHERE "created_at" >= CURRENT_DATE
-    `);
-    const todayTokenNum = (todayTokens[0]?.count || 0) + 1;
+    // Get today's token number (starts fresh from 1 each day)
+    let todayTokenNum = 1;
+    try {
+      const todayTokens = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(MAX(token_number), 0)::int AS max_token FROM "opd_queue"
+        WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+      `);
+      todayTokenNum = (todayTokens[0]?.max_token || 0) + 1;
+    } catch (tzErr) {
+      const todayTokens = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(MAX(token_number), 0)::int AS max_token FROM "opd_queue"
+        WHERE "created_at" >= CURRENT_DATE
+      `);
+      todayTokenNum = (todayTokens[0]?.max_token || 0) + 1;
+    }
 
     // Insert new OPD check-in record
     const result = await prisma.$queryRawUnsafe(`
@@ -176,22 +185,71 @@ export async function getOpdQueue(req, res) {
   await ensureOpdQueueTable();
 
   try {
-    const queue = await prisma.$queryRawUnsafe(`
-      SELECT * FROM "opd_queue"
-      WHERE "created_at" >= CURRENT_DATE - INTERVAL '1 day'
-      ORDER BY
-        CASE 
-          WHEN "status" = 'WAITING' THEN 1
-          WHEN "status" = 'IN_CONSULTATION' THEN 2
-          WHEN "status" = 'COMPLETED' THEN 3
-          ELSE 4
-        END,
-        "token_number" ASC;
-    `);
+    const targetDate = req.query.date ? String(req.query.date).trim() : null;
+    let queue;
+
+    try {
+      if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+        queue = await prisma.$queryRawUnsafe(`
+          SELECT * FROM "opd_queue"
+          WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date
+          ORDER BY
+            CASE 
+              WHEN "status" = 'WAITING' THEN 1
+              WHEN "status" = 'IN_CONSULTATION' THEN 2
+              WHEN "status" = 'COMPLETED' THEN 3
+              ELSE 4
+            END,
+            "token_number" ASC;
+        `, targetDate);
+      } else {
+        queue = await prisma.$queryRawUnsafe(`
+          SELECT * FROM "opd_queue"
+          WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+          ORDER BY
+            CASE 
+              WHEN "status" = 'WAITING' THEN 1
+              WHEN "status" = 'IN_CONSULTATION' THEN 2
+              WHEN "status" = 'COMPLETED' THEN 3
+              ELSE 4
+            END,
+            "token_number" ASC;
+        `);
+      }
+    } catch (tzErr) {
+      // Fallback query if timezone conversion is unsupported in underlying database
+      if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+        queue = await prisma.$queryRawUnsafe(`
+          SELECT * FROM "opd_queue"
+          WHERE created_at::date = $1::date
+          ORDER BY
+            CASE 
+              WHEN "status" = 'WAITING' THEN 1
+              WHEN "status" = 'IN_CONSULTATION' THEN 2
+              WHEN "status" = 'COMPLETED' THEN 3
+              ELSE 4
+            END,
+            "token_number" ASC;
+        `, targetDate);
+      } else {
+        queue = await prisma.$queryRawUnsafe(`
+          SELECT * FROM "opd_queue"
+          WHERE created_at >= CURRENT_DATE
+          ORDER BY
+            CASE 
+              WHEN "status" = 'WAITING' THEN 1
+              WHEN "status" = 'IN_CONSULTATION' THEN 2
+              WHEN "status" = 'COMPLETED' THEN 3
+              ELSE 4
+            END,
+            "token_number" ASC;
+        `);
+      }
+    }
 
     return res.status(200).json({
       success: true,
-      queue
+      queue: queue || []
     });
   } catch (error) {
     console.error('Error in getOpdQueue:', error);

@@ -226,8 +226,22 @@ export default function App() {
 
   const [opdQueue, setOpdQueue] = useState(() => {
     try {
+      const todayStr = getLocalDateStr();
       const saved = localStorage.getItem('cached_opd_queue');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => {
+            if (!item.created_at) return false;
+            try {
+              return getLocalDateStr(new Date(item.created_at)) === todayStr;
+            } catch (e) {
+              return false;
+            }
+          });
+        }
+      }
+      return [];
     } catch (e) {
       return [];
     }
@@ -290,7 +304,16 @@ export default function App() {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
-            setOpdQueue(parsed);
+            const todayStr = getLocalDateStr();
+            const todayOnly = parsed.filter(item => {
+              if (!item.created_at) return false;
+              try {
+                return getLocalDateStr(new Date(item.created_at)) === todayStr;
+              } catch (err) {
+                return false;
+              }
+            });
+            setOpdQueue(todayOnly);
           }
         } catch (err) {}
       }
@@ -629,9 +652,10 @@ export default function App() {
   // Fetch Today's OPD Queue from front desk
   const fetchOpdQueue = async () => {
     let activeToken = token;
+    const todayStr = getLocalDateStr();
     try {
       setLoadingOpdQueue(true);
-      let res = await fetch(`${API_BASE_URL}/opd/queue`, {
+      let res = await fetch(`${API_BASE_URL}/opd/queue?date=${todayStr}`, {
         headers: { 'Authorization': `Bearer ${activeToken}` }
       });
       let data = await res.json();
@@ -649,7 +673,7 @@ export default function App() {
             activeToken = authData.token;
             setToken(activeToken);
             localStorage.setItem('doc_token', activeToken);
-            res = await fetch(`${API_BASE_URL}/opd/queue`, {
+            res = await fetch(`${API_BASE_URL}/opd/queue?date=${todayStr}`, {
               headers: { 'Authorization': `Bearer ${activeToken}` }
             });
             data = await res.json();
@@ -660,8 +684,18 @@ export default function App() {
       }
 
       if (data.success && Array.isArray(data.queue)) {
-        // Merge server queue with any local pending items to prevent data loss
-        let merged = [...data.queue];
+        // Only keep items from today
+        const serverTodayItems = data.queue.filter(item => {
+          if (!item.created_at) return true;
+          try {
+            return getLocalDateStr(new Date(item.created_at)) === todayStr;
+          } catch (e) {
+            return true;
+          }
+        });
+
+        // Merge server queue with any local pending items created today
+        let merged = [...serverTodayItems];
         try {
           const saved = localStorage.getItem('cached_opd_queue');
           if (saved) {
@@ -669,9 +703,12 @@ export default function App() {
             if (Array.isArray(localList)) {
               localList.forEach(localItem => {
                 if (String(localItem.id).startsWith('local-') && localItem.status !== 'COMPLETED') {
-                  const alreadyIn = merged.some(m => m.id === localItem.id || (m.patient_name === localItem.patient_name && m.token_number === localItem.token_number));
-                  if (!alreadyIn) {
-                    merged.push(localItem);
+                  const localDate = localItem.created_at ? getLocalDateStr(new Date(localItem.created_at)) : todayStr;
+                  if (localDate === todayStr) {
+                    const alreadyIn = merged.some(m => m.id === localItem.id || (m.patient_name === localItem.patient_name && m.token_number === localItem.token_number));
+                    if (!alreadyIn) {
+                      merged.push(localItem);
+                    }
                   }
                 }
               });
@@ -688,14 +725,36 @@ export default function App() {
         // Fallback to local cache if server is offline or returned error
         try {
           const saved = localStorage.getItem('cached_opd_queue');
-          if (saved) setOpdQueue(JSON.parse(saved));
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const todayOnly = Array.isArray(parsed) ? parsed.filter(item => {
+              if (!item.created_at) return false;
+              try {
+                return getLocalDateStr(new Date(item.created_at)) === todayStr;
+              } catch (e) {
+                return false;
+              }
+            }) : [];
+            setOpdQueue(todayOnly);
+          }
         } catch (e) {}
       }
     } catch (err) {
       console.warn('fetchOpdQueue notice:', err.message);
       try {
         const saved = localStorage.getItem('cached_opd_queue');
-        if (saved) setOpdQueue(JSON.parse(saved));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const todayOnly = Array.isArray(parsed) ? parsed.filter(item => {
+            if (!item.created_at) return false;
+            try {
+              return getLocalDateStr(new Date(item.created_at)) === todayStr;
+            } catch (e) {
+              return false;
+            }
+          }) : [];
+          setOpdQueue(todayOnly);
+        }
       } catch (e) {}
     } finally {
       setLoadingOpdQueue(false);
