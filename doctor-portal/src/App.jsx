@@ -322,6 +322,54 @@ export default function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Auto-upload any local offline queue items to the server database
+  useEffect(() => {
+    const unsynced = (opdQueue || []).filter(p => String(p.id).startsWith('local-'));
+    if (unsynced.length === 0) return;
+
+    unsynced.forEach(async (item) => {
+      try {
+        let currentToken = token;
+        let res = await fetch(`${API_BASE_URL}/opd/checkin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            patientName: item.patient_name,
+            patientPhone: item.patient_phone,
+            patientAge: item.patient_age,
+            patientGender: item.patient_gender,
+            referenceId: item.reference_id,
+            bp: item.bp,
+            pulse: item.pulse,
+            weight: item.weight,
+            sugar: item.sugar,
+            temperature: item.temperature,
+            chiefComplaints: item.chief_complaints,
+            privateNotes: item.private_notes,
+            patientType: item.patient_type || 'NEW',
+            feeStatus: item.fee_status || 'PAID',
+            feeAmount: item.fee_amount || 700,
+            paymentMode: item.payment_mode || 'CASH'
+          })
+        });
+        let data = await res.json();
+        if (data.success && data.item) {
+          setOpdQueue(prev => {
+            const updated = prev.map(p => p.id === item.id ? data.item : p);
+            try { localStorage.setItem('cached_opd_queue', JSON.stringify(updated)); } catch (e) {}
+            return updated;
+          });
+          fetchOpdQueue();
+        }
+      } catch (e) {
+        console.warn('Auto-sync queue notice in App:', e);
+      }
+    });
+  }, [opdQueue?.length]);
+
   const [offlineLayout, setOfflineLayout] = useState({
     pageWidth: 800,  // px
     pageHeight: 1120, // px

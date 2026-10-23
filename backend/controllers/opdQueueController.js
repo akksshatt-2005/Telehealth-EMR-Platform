@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 let tableChecked = false;
-async function ensureOpdQueueTable() {
+export async function ensureOpdQueueTable() {
   if (tableChecked) return;
   try {
     await prisma.$executeRawUnsafe(`
@@ -30,15 +30,37 @@ async function ensureOpdQueueTable() {
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "patient_type" TEXT NOT NULL DEFAULT 'NEW';
-      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_status" TEXT NOT NULL DEFAULT 'PAID';
-      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_amount" NUMERIC NOT NULL DEFAULT 700;
-      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "payment_mode" TEXT NOT NULL DEFAULT 'CASH';
     `);
-    tableChecked = true;
   } catch (err) {
-    console.warn('ensureOpdQueueTable notice:', err.message);
+    console.warn('ensureOpdQueueTable create notice:', err.message);
   }
+
+  // Execute each ALTER TABLE independently so PostgreSQL accepts the statements
+  const alterColumns = [
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "patient_phone" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "reference_id" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "bp" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "pulse" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "weight" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "sugar" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "temperature" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "chief_complaints" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "patient_type" TEXT NOT NULL DEFAULT 'NEW';`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_status" TEXT NOT NULL DEFAULT 'PAID';`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_amount" NUMERIC NOT NULL DEFAULT 700;`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "payment_mode" TEXT NOT NULL DEFAULT 'CASH';`
+  ];
+
+  for (const query of alterColumns) {
+    try {
+      await prisma.$executeRawUnsafe(query);
+    } catch (err) {
+      console.warn('ensureOpdQueueTable alter notice:', err.message);
+    }
+  }
+
+  tableChecked = true;
 }
 
 /**
@@ -199,7 +221,7 @@ export async function checkInPatient(req, res) {
     console.error('Error in checkInPatient:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to check in patient.'
+      message: error?.message || 'Failed to check in patient.'
     });
   }
 }

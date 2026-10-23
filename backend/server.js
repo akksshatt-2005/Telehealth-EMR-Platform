@@ -15,6 +15,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import path from 'path';
 import { startReminderScheduler } from './services/scheduler.js';
 import { ensureDoctorAvailabilityAndTemplates } from './controllers/slotController.js';
+import { ensureOpdQueueTable } from './controllers/opdQueueController.js';
 
 
 
@@ -181,6 +182,12 @@ server.listen(PORT, async () => {
     `);
   } catch (err) {
     console.error('Error ensuring private_notes column:', err);
+  }
+  // Ensure OPD Queue table and all required columns exist
+  try {
+    await ensureOpdQueueTable();
+  } catch (err) {
+    console.error('Error ensuring opd_queue table:', err);
   }
   // Ensure 5 PM to 9 PM daily slots are seeded and ready
   await ensureDoctorAvailabilityAndTemplates();
