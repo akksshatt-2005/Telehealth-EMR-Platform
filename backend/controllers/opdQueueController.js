@@ -22,10 +22,18 @@ async function ensureOpdQueueTable() {
         "temperature" TEXT,
         "chief_complaints" TEXT,
         "private_notes" TEXT,
+        "patient_type" TEXT NOT NULL DEFAULT 'NEW',
+        "fee_status" TEXT NOT NULL DEFAULT 'PAID',
+        "fee_amount" NUMERIC NOT NULL DEFAULT 700,
+        "payment_mode" TEXT NOT NULL DEFAULT 'CASH',
         "status" TEXT NOT NULL DEFAULT 'WAITING',
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "patient_type" TEXT NOT NULL DEFAULT 'NEW';
+      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_status" TEXT NOT NULL DEFAULT 'PAID';
+      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_amount" NUMERIC NOT NULL DEFAULT 700;
+      ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "payment_mode" TEXT NOT NULL DEFAULT 'CASH';
     `);
     tableChecked = true;
   } catch (err) {
@@ -51,7 +59,11 @@ export async function checkInPatient(req, res) {
     sugar,
     temperature,
     chiefComplaints,
-    privateNotes
+    privateNotes,
+    patientType,
+    feeStatus,
+    feeAmount,
+    paymentMode
   } = req.body;
 
   if (!patientName || !patientName.trim()) {
@@ -70,6 +82,12 @@ export async function checkInPatient(req, res) {
   }
 
   try {
+    const finalPatientType = patientType === 'FOLLOW_UP' ? 'FOLLOW_UP' : 'NEW';
+    const finalFeeStatus = ['PAID', 'PENDING', 'FREE'].includes(feeStatus) ? feeStatus : (finalPatientType === 'FOLLOW_UP' ? 'FREE' : 'PAID');
+    const finalPaymentMode = ['CASH', 'UPI', 'FREE'].includes(paymentMode) ? paymentMode : (finalFeeStatus === 'FREE' ? 'FREE' : 'CASH');
+    const parsedFee = parseFloat(feeAmount);
+    const finalFeeAmount = !isNaN(parsedFee) ? parsedFee : (finalFeeStatus === 'FREE' ? 0 : 700);
+
     // Generate or reuse Reference ID
     let finalReferenceId = referenceId ? referenceId.trim() : null;
     if (!finalReferenceId) {
@@ -127,11 +145,15 @@ export async function checkInPatient(req, res) {
         "temperature",
         "chief_complaints",
         "private_notes",
+        "patient_type",
+        "fee_status",
+        "fee_amount",
+        "payment_mode",
         "status",
         "created_at",
         "updated_at"
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'WAITING', NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'WAITING', NOW(), NOW()
       ) RETURNING *;
     `,
       todayTokenNum,
@@ -146,7 +168,11 @@ export async function checkInPatient(req, res) {
       sugar ? sugar.trim() : null,
       temperature ? temperature.trim() : null,
       chiefComplaints ? chiefComplaints.trim() : null,
-      privateNotes ? privateNotes.trim() : null
+      privateNotes ? privateNotes.trim() : null,
+      finalPatientType,
+      finalFeeStatus,
+      finalFeeAmount,
+      finalPaymentMode
     );
 
     const checkinRecord = result[0];
@@ -267,22 +293,52 @@ export async function updateQueueStatus(req, res) {
   await ensureOpdQueueTable();
 
   const { id } = req.params;
-  const { status } = req.body;
-
-  if (!status) {
-    return res.status(400).json({
-      success: false,
-      message: 'Status is required.'
-    });
-  }
+  const { status, feeStatus, paymentMode, feeAmount, patientType } = req.body;
 
   try {
-    const result = await prisma.$queryRawUnsafe(`
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (status !== undefined) {
+      fields.push(`"status" = $${idx++}`);
+      values.push(status);
+    }
+    if (feeStatus !== undefined) {
+      fields.push(`"fee_status" = $${idx++}`);
+      values.push(feeStatus);
+    }
+    if (paymentMode !== undefined) {
+      fields.push(`"payment_mode" = $${idx++}`);
+      values.push(paymentMode);
+    }
+    if (feeAmount !== undefined) {
+      fields.push(`"fee_amount" = $${idx++}`);
+      values.push(parseFloat(feeAmount) || 0);
+    }
+    if (patientType !== undefined) {
+      fields.push(`"patient_type" = $${idx++}`);
+      values.push(patientType);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields provided for update.'
+      });
+    }
+
+    fields.push(`"updated_at" = NOW()`);
+    values.push(id);
+
+    const query = `
       UPDATE "opd_queue"
-      SET "status" = $1, "updated_at" = NOW()
-      WHERE "id" = $2::uuid
+      SET ${fields.join(', ')}
+      WHERE "id" = $${idx}::uuid
       RETURNING *;
-    `, status, id);
+    `;
+
+    const result = await prisma.$queryRawUnsafe(query, ...values);
 
     if (result.length === 0) {
       return res.status(404).json({

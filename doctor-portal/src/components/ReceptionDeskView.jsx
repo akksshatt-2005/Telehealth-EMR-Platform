@@ -26,7 +26,11 @@ export default function ReceptionDeskView({
     sugar: '',
     temperature: '',
     chiefComplaints: '',
-    privateNotes: ''
+    privateNotes: '',
+    patientType: 'NEW', // 'NEW' or 'FOLLOW_UP'
+    feeStatus: 'PAID', // 'PAID', 'PENDING', 'FREE'
+    paymentMode: 'CASH', // 'CASH', 'UPI', 'FREE'
+    feeAmount: '700'
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +81,49 @@ export default function ReceptionDeskView({
     return Math.max(maxToken, todayQueue.length) + 1;
   }, [todayQueue]);
 
+  // Payment and patient type statistics for today
+  const paymentStats = useMemo(() => {
+    let cashTotal = 0;
+    let upiTotal = 0;
+    let cashCount = 0;
+    let upiCount = 0;
+    let pendingCount = 0;
+    let newCount = 0;
+    let followUpCount = 0;
+
+    todayQueue.forEach(item => {
+      const isFollowUp = item.patient_type === 'FOLLOW_UP';
+      if (isFollowUp) followUpCount++; else newCount++;
+
+      const fee = parseFloat(item.fee_amount) || 0;
+      const status = item.fee_status || (item.patient_type === 'FOLLOW_UP' ? 'FREE' : 'PAID');
+      const mode = item.payment_mode || 'CASH';
+
+      if (status === 'PAID') {
+        if (mode === 'UPI') {
+          upiTotal += fee;
+          upiCount++;
+        } else {
+          cashTotal += fee;
+          cashCount++;
+        }
+      } else if (status === 'PENDING') {
+        pendingCount++;
+      }
+    });
+
+    return {
+      cashTotal,
+      upiTotal,
+      cashCount,
+      upiCount,
+      pendingCount,
+      newCount,
+      followUpCount,
+      totalRevenue: cashTotal + upiTotal
+    };
+  }, [todayQueue]);
+
   // Auto-upload any local offline queue items to the server database
   useEffect(() => {
     const unsynced = opdQueue.filter(p => String(p.id).startsWith('local-'));
@@ -103,7 +150,11 @@ export default function ReceptionDeskView({
             sugar: item.sugar,
             temperature: item.temperature,
             chiefComplaints: item.chief_complaints,
-            privateNotes: item.private_notes
+            privateNotes: item.private_notes,
+            patientType: item.patient_type || 'NEW',
+            feeStatus: item.fee_status || 'PAID',
+            feeAmount: item.fee_amount || 700,
+            paymentMode: item.payment_mode || 'CASH'
           })
         });
         let data = await res.json();
@@ -135,7 +186,11 @@ export default function ReceptionDeskView({
                 sugar: item.sugar,
                 temperature: item.temperature,
                 chiefComplaints: item.chief_complaints,
-                privateNotes: item.private_notes
+                privateNotes: item.private_notes,
+                patientType: item.patient_type || 'NEW',
+                feeStatus: item.fee_status || 'PAID',
+                feeAmount: item.fee_amount || 700,
+                paymentMode: item.payment_mode || 'CASH'
               })
             });
             data = await res.json();
@@ -271,9 +326,12 @@ export default function ReceptionDeskView({
       patientAge: patient.patientAge ? String(patient.patientAge) : '',
       patientGender: patient.patientGender || 'Male',
       referenceId: patient.referenceId || '',
-      // Do not copy past vitals so receptionist takes fresh ones, but keep recent complaint as reference if desired
       chiefComplaints: '',
-      privateNotes: ''
+      privateNotes: '',
+      patientType: 'FOLLOW_UP',
+      feeStatus: 'FREE',
+      paymentMode: 'CASH',
+      feeAmount: '0'
     }));
 
     setSelectedPatientNotice({
@@ -300,7 +358,11 @@ export default function ReceptionDeskView({
       sugar: '',
       temperature: '',
       chiefComplaints: '',
-      privateNotes: ''
+      privateNotes: '',
+      patientType: 'NEW',
+      feeStatus: 'PAID',
+      paymentMode: 'CASH',
+      feeAmount: '700'
     });
 
     setSelectedPatientNotice({
@@ -396,7 +458,11 @@ export default function ReceptionDeskView({
           sugar: '',
           temperature: '',
           chiefComplaints: '',
-          privateNotes: ''
+          privateNotes: '',
+          patientType: 'NEW',
+          feeStatus: 'PAID',
+          paymentMode: 'CASH',
+          feeAmount: '700'
         });
         setSearchQuery('');
         setSelectedPatientNotice(null);
@@ -418,6 +484,10 @@ export default function ReceptionDeskView({
           temperature: formData.temperature,
           chief_complaints: formData.chiefComplaints,
           private_notes: formData.privateNotes,
+          patient_type: formData.patientType || 'NEW',
+          fee_status: formData.feeStatus || 'PAID',
+          fee_amount: parseFloat(formData.feeAmount) || (formData.feeStatus === 'FREE' ? 0 : 700),
+          payment_mode: formData.paymentMode || 'CASH',
           status: 'WAITING',
           created_at: new Date().toISOString()
         };
@@ -439,7 +509,11 @@ export default function ReceptionDeskView({
           sugar: '',
           temperature: '',
           chiefComplaints: '',
-          privateNotes: ''
+          privateNotes: '',
+          patientType: 'NEW',
+          feeStatus: 'PAID',
+          paymentMode: 'CASH',
+          feeAmount: '700'
         });
         setSearchQuery('');
         setSelectedPatientNotice(null);
@@ -463,6 +537,10 @@ export default function ReceptionDeskView({
         temperature: formData.temperature,
         chief_complaints: formData.chiefComplaints,
         private_notes: formData.privateNotes,
+        patient_type: formData.patientType || 'NEW',
+        fee_status: formData.feeStatus || 'PAID',
+        fee_amount: parseFloat(formData.feeAmount) || (formData.feeStatus === 'FREE' ? 0 : 700),
+        payment_mode: formData.paymentMode || 'CASH',
         status: 'WAITING',
         created_at: new Date().toISOString()
       };
@@ -484,7 +562,11 @@ export default function ReceptionDeskView({
         sugar: '',
         temperature: '',
         chiefComplaints: '',
-        privateNotes: ''
+        privateNotes: '',
+        patientType: 'NEW',
+        feeStatus: 'PAID',
+        paymentMode: 'CASH',
+        feeAmount: '700'
       });
       setSearchQuery('');
       setSelectedPatientNotice(null);
@@ -516,6 +598,49 @@ export default function ReceptionDeskView({
       fetchOpdQueue();
     } catch (err) {
       console.warn('Delete error:', err);
+      fetchOpdQueue();
+    }
+  };
+
+  // Update fee status or payment mode live (e.g., mark Pending as Paid via Cash or UPI)
+  const handleUpdatePayment = async (id, feeStatus, paymentMode, feeAmount) => {
+    const numericFee = feeAmount !== undefined ? parseFloat(feeAmount) : (feeStatus === 'FREE' ? 0 : 700);
+    if (setOpdQueue) {
+      setOpdQueue(prev => {
+        const next = prev.map(p => {
+          if (p.id === id) {
+            return {
+              ...p,
+              fee_status: feeStatus,
+              payment_mode: paymentMode,
+              fee_amount: numericFee
+            };
+          }
+          return p;
+        });
+        try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+    }
+
+    try {
+      if (!String(id).startsWith('local-')) {
+        await fetch(`${API_BASE_URL}/opd/queue/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            feeStatus,
+            paymentMode,
+            feeAmount: numericFee
+          })
+        });
+      }
+      fetchOpdQueue();
+    } catch (err) {
+      console.warn('Payment update notice:', err);
       fetchOpdQueue();
     }
   };
@@ -586,6 +711,69 @@ export default function ReceptionDeskView({
           <div style={{ backgroundColor: '#f0fdf4', borderRadius: '10px', padding: '1rem', border: '1px solid #bbf7d0', boxShadow: '0 1px 3px rgba(16,185,129,0.05)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Consultation Done</div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a', marginTop: '0.2rem' }}>{completedPatients.length}</div>
+          </div>
+        </div>
+
+        {/* Daily Cash & UPI Collection & Patient Type Summary Bar */}
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '0.85rem 1.25rem', border: '1.5px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.35rem' }}>💵</span>
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Cash Collected</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#166534' }}>
+                  ₹{paymentStats.cashTotal} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>({paymentStats.cashCount} pts)</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.35rem' }}>📱</span>
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase' }}>UPI / Online Collected</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#075985' }}>
+                  ₹{paymentStats.upiTotal} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>({paymentStats.upiCount} pts)</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.35rem' }}>💰</span>
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0f766e', textTransform: 'uppercase' }}>Total Today's OPD Revenue</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f766e' }}>
+                  ₹{paymentStats.totalRevenue}
+                </div>
+              </div>
+            </div>
+
+            {paymentStats.pendingCount > 0 && (
+              <>
+                <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.35rem' }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>Fees Pending</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#d97706' }}>
+                      {paymentStats.pendingCount} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>patient(s)</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '15px', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 800, border: '1px solid #bae6fd' }}>
+              👤 New: {paymentStats.newCount}
+            </span>
+            <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '15px', backgroundColor: '#f3e8ff', color: '#7e22ce', fontWeight: 800, border: '1px solid #d8b4fe' }}>
+              🔄 Follow-Up: {paymentStats.followUpCount}
+            </span>
           </div>
         </div>
 
@@ -806,6 +994,143 @@ export default function ReceptionDeskView({
                 </div>
               </div>
 
+              {/* Consultation Fees & Patient Type Section */}
+              <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <strong style={{ fontSize: '0.82rem', color: '#0f766e', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    💳 Patient Type & Consultation Fees
+                  </strong>
+                  
+                  {/* Segmented Button for New vs Follow-up */}
+                  <div style={{ display: 'inline-flex', borderRadius: '6px', border: '1.5px solid #cbd5e1', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, patientType: 'NEW', feeStatus: 'PAID', paymentMode: 'CASH', feeAmount: '700' }))}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: formData.patientType === 'NEW' ? '#0f766e' : '#ffffff',
+                        color: formData.patientType === 'NEW' ? '#ffffff' : '#64748b'
+                      }}
+                    >
+                      👤 New Patient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, patientType: 'FOLLOW_UP', feeStatus: 'FREE', paymentMode: 'CASH', feeAmount: '0' }))}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: formData.patientType === 'FOLLOW_UP' ? '#7c3aed' : '#ffffff',
+                        color: formData.patientType === 'FOLLOW_UP' ? '#ffffff' : '#64748b'
+                      }}
+                    >
+                      🔄 Follow-Up Patient
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', alignItems: 'center' }}>
+                  {/* Fee Status Dropdown */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 700, color: '#475569', marginBottom: '0.2rem' }}>
+                      Fees Status
+                    </label>
+                    <select
+                      value={formData.feeStatus}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => ({
+                          ...prev,
+                          feeStatus: val,
+                          feeAmount: val === 'FREE' ? '0' : (prev.feeAmount === '0' ? '700' : prev.feeAmount)
+                        }));
+                      }}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.45rem', 
+                        fontSize: '0.82rem', 
+                        borderRadius: '6px', 
+                        border: '1.5px solid #cbd5e1', 
+                        fontWeight: 800, 
+                        backgroundColor: formData.feeStatus === 'PAID' ? '#f0fdf4' : formData.feeStatus === 'PENDING' ? '#fffbeb' : '#f5f3ff', 
+                        color: formData.feeStatus === 'PAID' ? '#166534' : formData.feeStatus === 'PENDING' ? '#b45309' : '#6b21a8' 
+                      }}
+                    >
+                      <option value="PAID">✅ Fees Paid</option>
+                      <option value="PENDING">⚠️ Fees Pending (Not Given)</option>
+                      <option value="FREE">🆓 Follow-Up / Free (No Fee)</option>
+                    </select>
+                  </div>
+
+                  {/* Payment Mode Selector (Cash vs UPI) */}
+                  {formData.feeStatus !== 'FREE' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 700, color: '#475569', marginBottom: '0.2rem' }}>
+                        Mode of Payment
+                      </label>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, paymentMode: 'CASH' }))}
+                          style={{
+                            flex: 1,
+                            padding: '0.45rem 0.2rem',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            border: formData.paymentMode === 'CASH' ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                            backgroundColor: formData.paymentMode === 'CASH' ? '#dcfce7' : '#ffffff',
+                            color: formData.paymentMode === 'CASH' ? '#15803d' : '#64748b'
+                          }}
+                        >
+                          💵 Cash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, paymentMode: 'UPI' }))}
+                          style={{
+                            flex: 1,
+                            padding: '0.45rem 0.2rem',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            border: formData.paymentMode === 'UPI' ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                            backgroundColor: formData.paymentMode === 'UPI' ? '#e0f2fe' : '#ffffff',
+                            color: formData.paymentMode === 'UPI' ? '#0369a1' : '#64748b'
+                          }}
+                        >
+                          📱 UPI
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fee Amount Input */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 700, color: '#475569', marginBottom: '0.2rem' }}>
+                      Fee Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.feeAmount}
+                      disabled={formData.feeStatus === 'FREE'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, feeAmount: e.target.value }))}
+                      placeholder={formData.feeStatus === 'FREE' ? '0' : '700'}
+                      style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.82rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: 800, backgroundColor: formData.feeStatus === 'FREE' ? '#f1f5f9' : '#ffffff' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Vitals Box (Soft Rose Card) */}
               <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
@@ -1018,6 +1343,123 @@ export default function ReceptionDeskView({
                           </span>
                         </div>
                       </div>
+
+                      {/* Patient Type & Fees Status Row */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginTop: '0.45rem' }}>
+                        {item.patient_type === 'FOLLOW_UP' ? (
+                          <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#f3e8ff', color: '#7e22ce', fontWeight: 800, border: '1px solid #d8b4fe' }}>
+                            🔄 Follow-Up
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 800, border: '1px solid #bae6fd' }}>
+                            👤 New Patient
+                          </span>
+                        )}
+
+                        {item.fee_status === 'PENDING' ? (
+                          <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 800, border: '1.5px solid #f59e0b', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            ⚠️ Fees Pending (₹{item.fee_amount !== undefined ? item.fee_amount : 700})
+                          </span>
+                        ) : item.fee_status === 'FREE' ? (
+                          <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#f5f3ff', color: '#6b21a8', fontWeight: 800, border: '1px solid #ddd6fe' }}>
+                            🆓 Follow-Up (No Fee)
+                          </span>
+                        ) : (
+                          item.payment_mode === 'UPI' ? (
+                            <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontWeight: 800, border: '1px solid #7dd3fc', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              📱 ₹{item.fee_amount !== undefined ? item.fee_amount : 700} Paid (UPI)
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 800, border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              💵 ₹{item.fee_amount !== undefined ? item.fee_amount : 700} Paid (Cash)
+                            </span>
+                          )
+                        )}
+                      </div>
+
+                      {/* Instant Payment Actions */}
+                      {item.fee_status === 'PENDING' && (
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem', padding: '0.35rem 0.55rem', backgroundColor: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                          <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#b45309' }}>Collect Fee:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'PAID', 'CASH', item.fee_amount || 700)}
+                            style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '4px', border: '1px solid #16a34a', backgroundColor: '#dcfce7', color: '#15803d', cursor: 'pointer' }}
+                            title="Patient paid via Cash"
+                          >
+                            💵 Cash (₹{item.fee_amount !== undefined ? item.fee_amount : 700})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'PAID', 'UPI', item.fee_amount || 700)}
+                            style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '4px', border: '1px solid #0284c7', backgroundColor: '#e0f2fe', color: '#0369a1', cursor: 'pointer' }}
+                            title="Patient paid via UPI"
+                          >
+                            📱 UPI (₹{item.fee_amount !== undefined ? item.fee_amount : 700})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'FREE', 'CASH', 0)}
+                            style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.45rem', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#64748b', cursor: 'pointer' }}
+                            title="Waive fees / mark as free"
+                          >
+                            🆓 Free
+                          </button>
+                        </div>
+                      )}
+
+                      {item.fee_status === 'PAID' && (
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.35rem' }}>
+                          <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Change:</span>
+                          {item.payment_mode === 'CASH' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdatePayment(item.id, 'PAID', 'UPI', item.fee_amount || 700)}
+                              style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: '4px', border: '1px solid #bae6fd', backgroundColor: '#f0f9ff', color: '#0369a1', cursor: 'pointer' }}
+                              title="Switch payment mode to UPI"
+                            >
+                              ⇄ Switch to UPI
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdatePayment(item.id, 'PAID', 'CASH', item.fee_amount || 700)}
+                              style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: '4px', border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', color: '#15803d', cursor: 'pointer' }}
+                              title="Switch payment mode to Cash"
+                            >
+                              ⇄ Switch to Cash
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'PENDING', item.payment_mode || 'CASH', item.fee_amount || 700)}
+                            style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: '4px', border: '1px solid #fed7aa', backgroundColor: '#fff7ed', color: '#c2410c', cursor: 'pointer' }}
+                            title="Mark back to pending"
+                          >
+                            ⚠️ Mark Pending
+                          </button>
+                        </div>
+                      )}
+
+                      {item.fee_status === 'FREE' && (
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.35rem' }}>
+                          <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Paid today?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'PAID', 'CASH', 700)}
+                            style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: '4px', border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', color: '#15803d', cursor: 'pointer' }}
+                          >
+                            💵 Collect ₹700 Cash
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePayment(item.id, 'PAID', 'UPI', 700)}
+                            style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: '4px', border: '1px solid #bae6fd', backgroundColor: '#f0f9ff', color: '#0369a1', cursor: 'pointer' }}
+                          >
+                            📱 Collect ₹700 UPI
+                          </button>
+                        </div>
+                      )}
 
                       {/* Vitals preview row */}
                       {(item.bp || item.pulse || item.weight || item.sugar) && (

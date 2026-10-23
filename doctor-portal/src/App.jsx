@@ -2961,6 +2961,39 @@ export default function App() {
                             {qPatient.patient_age} Yrs / {qPatient.patient_gender} {qPatient.patient_phone ? `• 📞 ${qPatient.patient_phone}` : ''}
                           </div>
 
+                          {/* Patient Type & Fee Badges */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem', alignItems: 'center' }}>
+                            {qPatient.patient_type === 'FOLLOW_UP' ? (
+                              <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#f3e8ff', color: '#7e22ce', fontWeight: 800, border: '1px solid #d8b4fe' }}>
+                                🔄 Follow-Up
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 800, border: '1px solid #bae6fd' }}>
+                                👤 New Patient
+                              </span>
+                            )}
+
+                            {qPatient.fee_status === 'PENDING' ? (
+                              <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 800, border: '1.5px solid #f59e0b' }}>
+                                ⚠️ Fees Pending (₹{qPatient.fee_amount !== undefined ? qPatient.fee_amount : 700})
+                              </span>
+                            ) : qPatient.fee_status === 'FREE' ? (
+                              <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#f5f3ff', color: '#6b21a8', fontWeight: 800, border: '1px solid #ddd6fe' }}>
+                                🆓 Follow-Up (No Fee)
+                              </span>
+                            ) : (
+                              qPatient.payment_mode === 'UPI' ? (
+                                <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontWeight: 800, border: '1px solid #7dd3fc' }}>
+                                  📱 ₹{qPatient.fee_amount !== undefined ? qPatient.fee_amount : 700} Paid (UPI)
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '0.7rem', padding: '0.12rem 0.45rem', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 800, border: '1px solid #86efac' }}>
+                                  💵 ₹{qPatient.fee_amount !== undefined ? qPatient.fee_amount : 700} Paid (Cash)
+                                </span>
+                              )
+                            )}
+                          </div>
+
                           {/* Vitals preview row */}
                           {(qPatient.bp || qPatient.pulse || qPatient.weight || qPatient.sugar) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.45rem', fontSize: '0.75rem' }}>
@@ -3363,6 +3396,24 @@ export default function App() {
                             <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                               {qPatient.patient_age} Yrs / {qPatient.patient_gender} {qPatient.patient_phone ? `• 📞 ${qPatient.patient_phone}` : ''}
                             </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center', marginTop: '0.1rem' }}>
+                              <span style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', backgroundColor: qPatient.patient_type === 'FOLLOW_UP' ? '#f3e8ff' : '#e0f2fe', color: qPatient.patient_type === 'FOLLOW_UP' ? '#7e22ce' : '#0369a1', fontWeight: 700 }}>
+                                {qPatient.patient_type === 'FOLLOW_UP' ? '🔄 Follow-Up' : '👤 New'}
+                              </span>
+                              {qPatient.fee_status === 'PENDING' ? (
+                                <span style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 800 }}>
+                                  ⚠️ Fee Pending
+                                </span>
+                              ) : qPatient.fee_status === 'FREE' ? (
+                                <span style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', backgroundColor: '#f5f3ff', color: '#6b21a8', fontWeight: 700 }}>
+                                  🆓 Free
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 700 }}>
+                                  {qPatient.payment_mode === 'UPI' ? '📱 UPI' : '💵 Cash'} ₹{qPatient.fee_amount !== undefined ? qPatient.fee_amount : 700}
+                                </span>
+                              )}
+                            </div>
                             {!isDone && (
                               <button
                                 type="button"
@@ -3585,9 +3636,38 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
-                    {offlineForm.patientName ? `Prescription for ${offlineForm.patientName} (Ref: ${offlineForm.referenceId})` : 'Create Offline Prescription'}
-                  </h3>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+                      {offlineForm.patientName ? `Prescription for ${offlineForm.patientName} (Ref: ${offlineForm.referenceId})` : 'Create Offline Prescription'}
+                    </h3>
+                    {(() => {
+                      const activeQ = activeConsultingQueueId ? opdQueue.find(p => p.id === activeConsultingQueueId) : null;
+                      if (!activeQ) return null;
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.4rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                            Token #{activeQ.token_number} In Cabin
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, backgroundColor: activeQ.patient_type === 'FOLLOW_UP' ? '#f3e8ff' : '#e0f2fe', color: activeQ.patient_type === 'FOLLOW_UP' ? '#7e22ce' : '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '4px', border: `1px solid ${activeQ.patient_type === 'FOLLOW_UP' ? '#d8b4fe' : '#bae6fd'}` }}>
+                            {activeQ.patient_type === 'FOLLOW_UP' ? '🔄 Follow-Up Patient' : '👤 New Patient'}
+                          </span>
+                          {activeQ.fee_status === 'PENDING' ? (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#fef3c7', color: '#b45309', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1.5px solid #f59e0b' }}>
+                              ⚠️ Consultation Fees Pending (₹{activeQ.fee_amount !== undefined ? activeQ.fee_amount : 700})
+                            </span>
+                          ) : activeQ.fee_status === 'FREE' ? (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#f5f3ff', color: '#6b21a8', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid #ddd6fe' }}>
+                              🆓 Follow-Up Visit (No Fee)
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#dcfce7', color: '#15803d', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid #86efac' }}>
+                              {activeQ.payment_mode === 'UPI' ? '📱 ₹' + (activeQ.fee_amount !== undefined ? activeQ.fee_amount : 700) + ' Paid via UPI' : '💵 ₹' + (activeQ.fee_amount !== undefined ? activeQ.fee_amount : 700) + ' Paid in Cash'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
                 
                 {/* Reference ID & Consultation Date Row */}
