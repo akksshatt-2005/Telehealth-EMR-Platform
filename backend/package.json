@@ -5,6 +5,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "prisma:migrate": "prisma migrate dev",

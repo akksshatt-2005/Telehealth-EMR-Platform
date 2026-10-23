@@ -1285,7 +1285,11 @@ export default function App() {
         alert(isNewVisit ? 'New follow-up prescription created successfully!' : (selectedOfflineRxId ? 'Offline prescription updated successfully!' : 'Offline prescription created successfully!'));
         setSelectedOfflineRxId(data.prescription.id);
         setOriginalConsultDate(data.prescription.consultDate ? data.prescription.consultDate.split('T')[0] : '');
-        setOfflineForm(prev => ({ ...prev, referenceId: data.prescription.referenceId || '' }));
+        setOfflineForm(prev => ({
+          ...prev,
+          referenceId: data.prescription.referenceId || '',
+          privateNotes: data.prescription.privateNotes !== undefined ? (data.prescription.privateNotes || '') : (data.prescription.private_notes !== undefined ? (data.prescription.private_notes || '') : (prev.privateNotes || ''))
+        }));
         fetchOfflinePrescriptions();
         fetchMedicines();
 

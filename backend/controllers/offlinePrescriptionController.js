@@ -181,6 +181,22 @@ export async function createOfflinePrescription(req, res) {
       }
     }
 
+    // Guarantee that private_notes is saved to the PostgreSQL database table
+    if (prescription && prescription.id && privateNotes !== undefined) {
+      const finalNote = privateNotes ? String(privateNotes).trim() : null;
+      try {
+        await prisma.$executeRawUnsafe(`
+          UPDATE "offline_prescriptions"
+          SET "private_notes" = $1
+          WHERE "id" = $2::uuid;
+        `, finalNote, prescription.id);
+        prescription.privateNotes = finalNote;
+        prescription.private_notes = finalNote;
+      } catch (rawNoteErr) {
+        console.warn('Direct SQL update for private_notes notice:', rawNoteErr.message);
+      }
+    }
+
     // Auto-save any new prescribed medicines into doctor's medicine database
     if (Array.isArray(medications) && medications.length > 0) {
       for (const med of medications) {
@@ -259,25 +275,54 @@ export async function getOfflinePrescriptions(req, res) {
       doctorProfile = await prisma.doctorProfile.findFirst();
     }
 
-    const whereClause = doctorProfile ? { doctorId: doctorProfile.id } : {};
-
-    let prescriptions;
+    let prescriptions = [];
     try {
-      prescriptions = await prisma.offlinePrescription.findMany({
-        where: whereClause,
+      const rawRows = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "offline_prescriptions"
+        ${doctorProfile ? 'WHERE "doctor_id" = $1::uuid' : ''}
+        ORDER BY "created_at" DESC;
+      `, ...(doctorProfile ? [doctorProfile.id] : []));
+
+      prescriptions = rawRows.map(rx => ({
+        id: rx.id,
+        doctorId: rx.doctor_id,
+        patientName: rx.patient_name,
+        patientAge: rx.patient_age,
+        patientGender: rx.patient_gender,
+        diagnosis: rx.diagnosis,
+        medications: typeof rx.medications === 'string' ? JSON.parse(rx.medications) : (rx.medications || []),
+        advice: rx.advice || '',
+        requiredTests: rx.required_tests || '',
+        pageWidth: rx.page_width || 800,
+        pageHeight: rx.page_height || 1120,
+        fontSize: rx.font_size || 13,
+        marginSize: rx.margin_size || 40,
+        rowSpacing: rx.row_spacing || 12,
+        useLetterhead: rx.use_letterhead !== undefined ? rx.use_letterhead : false,
+        referenceId: rx.reference_id,
+        patientPhone: rx.patient_phone,
+        chiefComplaints: rx.chief_complaints,
+        bp: rx.bp,
+        pulse: rx.pulse,
+        weight: rx.weight,
+        followUpDate: rx.follow_up_date,
+        consultDate: rx.consult_date,
+        privateNotes: rx.private_notes || '',
+        private_notes: rx.private_notes || '',
+        createdAt: rx.created_at,
+        updatedAt: rx.updated_at
+      }));
+    } catch (rawErr) {
+      console.warn('Raw fetch for offline_prescriptions notice, using prisma findMany:', rawErr.message);
+      const prismaRxs = await prisma.offlinePrescription.findMany({
+        where: doctorProfile ? { doctorId: doctorProfile.id } : {},
         orderBy: { createdAt: 'desc' }
       });
-    } catch (findErr) {
-      console.warn('findMany failed, ensuring private_notes column exists:', findErr.message);
-      try {
-        await prisma.$executeRawUnsafe(`
-          ALTER TABLE "offline_prescriptions" ADD COLUMN IF NOT EXISTS "private_notes" TEXT;
-        `);
-      } catch (e) {}
-      prescriptions = await prisma.offlinePrescription.findMany({
-        where: { doctorId: doctorProfile.id },
-        orderBy: { createdAt: 'desc' }
-      });
+      prescriptions = prismaRxs.map(rx => ({
+        ...rx,
+        privateNotes: rx.privateNotes || rx.private_notes || '',
+        private_notes: rx.privateNotes || rx.private_notes || ''
+      }));
     }
 
     return res.status(200).json({
