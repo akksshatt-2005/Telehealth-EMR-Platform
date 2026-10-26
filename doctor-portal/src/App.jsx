@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import ReceptionDeskView from './components/ReceptionDeskView';
 
@@ -275,9 +275,20 @@ export default function App() {
   const [showQuickLookupDropdown, setShowQuickLookupDropdown] = useState(false);
   const [tempMed, setTempMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
   const [rxAutoSaveNotice, setRxAutoSaveNotice] = useState(null);
+  const [medHighlightedIndex, setMedHighlightedIndex] = useState(0);
+  const [quickLookupHighlightedIndex, setQuickLookupHighlightedIndex] = useState(0);
+  const [symptomHighlightedIndex, setSymptomHighlightedIndex] = useState(0);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [queueNavToast, setQueueNavToast] = useState(null);
+
   const medNameInputRef = useRef(null);
   const medDosageInputRef = useRef(null);
   const medFrequencyInputRef = useRef(null);
+  const diagnosisInputRef = useRef(null);
+  const chiefComplaintsInputRef = useRef(null);
+  const quickLookupInputRef = useRef(null);
+  const medDropdownRef = useRef(null);
+  const previewScrollRef = useRef(null);
   const [offlineForm, setOfflineForm] = useState({
     referenceId: '',
     patientName: '',
@@ -389,6 +400,16 @@ export default function App() {
 
   // Medicine Inventory State
   const [medicinesList, setMedicinesList] = useState([]);
+  
+  // Memoized filtered medicines for rapid autocomplete keyboard search
+  const filteredMeds = useMemo(() => {
+    if (!tempMed.name || !tempMed.name.trim()) return [];
+    const q = tempMed.name.trim().toLowerCase();
+    return (medicinesList || []).filter(m => 
+      m.name.toLowerCase().includes(q) ||
+      (m.composition && m.composition.toLowerCase().includes(q))
+    ).slice(0, 25);
+  }, [medicinesList, tempMed.name]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('prescriptions'); // 'prescriptions' or 'inventory'
   const [newMedForm, setNewMedForm] = useState({ name: '', composition: '', dosage: '' });
@@ -2082,6 +2103,126 @@ export default function App() {
     return `${mins}:${secs}`;
   };
 
+  // Zero-Mouse Hands-on-Keyboard Global Hotkeys
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (dashboardView !== 'offline-rx' || !user || user.role === 'RECEPTIONIST') return;
+
+      // 1. Toggle Help Modal (F1)
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
+        return;
+      }
+
+      // 2. Save Prescription (Ctrl+Enter, Cmd+Enter, or Alt+S)
+      if (((e.ctrlKey || e.metaKey) && e.key === 'Enter') || (e.altKey && (e.key === 's' || e.key === 'S'))) {
+        e.preventDefault();
+        saveOfflinePrescription(e);
+        return;
+      }
+
+      // 3. Print Prescription (Ctrl+P, Cmd+P, or Alt+P)
+      if (((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) || (e.altKey && (e.key === 'p' || e.key === 'P'))) {
+        e.preventDefault();
+        handlePrintPrescription();
+        return;
+      }
+
+      // 4. Next Waiting Patient from OPD Queue (Alt+N)
+      if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        const nextQ = opdQueue.find(p => p.status === 'WAITING');
+        if (nextQ) {
+          startConsultationFromQueue(nextQ);
+          setQueueNavToast(`⚡ Auto-loaded Token #${nextQ.token_number}: ${nextQ.patient_name}`);
+          setTimeout(() => setQueueNavToast(null), 3500);
+        } else {
+          setQueueNavToast('ℹ️ No patients currently waiting in today\'s OPD queue.');
+          setTimeout(() => setQueueNavToast(null), 3000);
+        }
+        return;
+      }
+
+      // 5. Jump to Medicine Input (Alt+M)
+      if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        medNameInputRef.current?.focus();
+        medNameInputRef.current?.select();
+        return;
+      }
+
+      // 6. Jump to Clinical Diagnosis (Alt+D)
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        diagnosisInputRef.current?.focus();
+        diagnosisInputRef.current?.select();
+        return;
+      }
+
+      // 7. Jump to Chief Complaints (Alt+C)
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        chiefComplaintsInputRef.current?.focus();
+        chiefComplaintsInputRef.current?.select();
+        return;
+      }
+
+      // 8. Jump to Patient & Serial Search (Alt+F or Ctrl+K or Cmd+K)
+      if ((e.altKey && (e.key === 'f' || e.key === 'F')) || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) {
+        e.preventDefault();
+        quickLookupInputRef.current?.focus();
+        quickLookupInputRef.current?.select();
+        return;
+      }
+
+      // 9. Reset / Clear Form (Alt+R)
+      if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        if (window.confirm('Reset form and start a fresh prescription?')) {
+          resetOfflineForm();
+        }
+        return;
+      }
+
+      // 10. Smooth Arrow Key Scroll with Alt+ArrowDown / Alt+ArrowUp
+      if (e.altKey && e.key === 'ArrowDown') {
+        e.preventDefault();
+        window.scrollBy({ top: 220, behavior: 'smooth' });
+        return;
+      }
+      if (e.altKey && e.key === 'ArrowUp') {
+        e.preventDefault();
+        window.scrollBy({ top: -220, behavior: 'smooth' });
+        return;
+      }
+
+      // 11. Unfocused Page Scroll (When cursor is not in an editable field)
+      const isInputActive = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+      if (!isInputActive) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          window.scrollBy({ top: 140, behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          window.scrollBy({ top: -140, behavior: 'smooth' });
+        } else if (e.key === 'PageDown') {
+          e.preventDefault();
+          window.scrollBy({ top: 450, behavior: 'smooth' });
+        } else if (e.key === 'PageUp') {
+          e.preventDefault();
+          window.scrollBy({ top: -450, behavior: 'smooth' });
+        } else if (e.key === '?') {
+          e.preventDefault();
+          setShowShortcutsModal(prev => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [dashboardView, user, opdQueue, offlineForm, originalConsultDate, selectedOfflineRxId, tempMed, token, medicinesList]);
+
   // End Video Call & mark completed on both ends
   const endConsultation = async () => {
     if (!activeVideoAppt) return;
@@ -2964,9 +3105,26 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: 700 }}>
-                      Click "⚡ Consult" to auto-load patient details instantly:
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextQ = opdQueue.find(p => p.status === 'WAITING');
+                        if (nextQ) {
+                          startConsultationFromQueue(nextQ);
+                          setQueueNavToast(`⚡ Auto-loaded Token #${nextQ.token_number}: ${nextQ.patient_name}`);
+                          setTimeout(() => setQueueNavToast(null), 3500);
+                        } else {
+                          setQueueNavToast('ℹ️ No patients currently waiting in today\'s OPD queue.');
+                          setTimeout(() => setQueueNavToast(null), 3000);
+                        }
+                      }}
+                      className="btn btn-primary"
+                      style={{ padding: '0.25rem 0.75rem', fontSize: '0.78rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#0f766e' }}
+                      title="Load next waiting patient from queue into cabin (Hotkey: Alt+N)"
+                    >
+                      <span>⚡ Next Patient</span>
+                      <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.05rem 0.35rem', borderRadius: '3px' }}>Alt+N</span>
+                    </button>
                     <button
                       type="button"
                       onClick={fetchOpdQueue}
@@ -2977,6 +3135,13 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                {queueNavToast && (
+                  <div style={{ marginBottom: '0.75rem', padding: '0.45rem 0.75rem', backgroundColor: '#ecfdf5', border: '1.5px solid #10b981', borderRadius: '6px', color: '#065f46', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', animation: 'fadeIn 0.2s ease-out' }}>
+                    <span>✓</span>
+                    <span>{queueNavToast}</span>
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '0.85rem' }}>
                   {opdQueue.filter(p => p.status === 'WAITING' || p.status === 'IN_CONSULTATION').map((qPatient) => {
@@ -3134,16 +3299,67 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--white)', border: '1.5px solid var(--primary)', borderRadius: '8px', padding: '0.2rem 0.75rem', boxShadow: 'var(--shadow-sm)' }}>
                   <span style={{ fontSize: '1.1rem', marginRight: '0.5rem' }}>🔍</span>
                   <input 
+                    ref={quickLookupInputRef}
                     type="text" 
-                    placeholder="Search Old Patient by Serial / Ref No (e.g. 58 or 58/2026), Patient Name, or Mobile..."
+                    placeholder="Search Old Patient by Serial / Ref No (e.g. 58 or 58/2026), Patient Name, or Mobile... [Alt+F / Ctrl+K]"
                     value={quickLookupQuery}
                     onChange={e => {
                       setQuickLookupQuery(e.target.value);
                       setShowQuickLookupDropdown(true);
+                      setQuickLookupHighlightedIndex(0);
                     }}
-                    onFocus={() => setShowQuickLookupDropdown(true)}
+                    onFocus={() => {
+                      setShowQuickLookupDropdown(true);
+                      setQuickLookupHighlightedIndex(0);
+                    }}
+                    onKeyDown={e => {
+                      const results = getQuickLookupResults();
+                      if (e.key === 'ArrowDown') {
+                        if (results.length > 0) {
+                          e.preventDefault();
+                          setQuickLookupHighlightedIndex(prev => {
+                            const next = (prev + 1) % results.length;
+                            const el = document.getElementById(`quick-lookup-item-${next}`);
+                            if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            return next;
+                          });
+                        }
+                      } else if (e.key === 'ArrowUp') {
+                        if (results.length > 0) {
+                          e.preventDefault();
+                          setQuickLookupHighlightedIndex(prev => {
+                            const next = prev <= 0 ? results.length - 1 : prev - 1;
+                            const el = document.getElementById(`quick-lookup-item-${next}`);
+                            if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            return next;
+                          });
+                        }
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (results.length > 0 && quickLookupHighlightedIndex >= 0 && quickLookupHighlightedIndex < results.length) {
+                          const targetRx = results[quickLookupHighlightedIndex];
+                          if (e.shiftKey) {
+                            loadOfflinePrescription(targetRx);
+                            setExpandedRxHistoryIds(new Set([targetRx.id]));
+                          } else {
+                            startNewFollowUpFromPatient(targetRx);
+                          }
+                          setShowQuickLookupDropdown(false);
+                          setQuickLookupQuery('');
+                          setTimeout(() => {
+                            medNameInputRef.current?.focus();
+                          }, 150);
+                        }
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setShowQuickLookupDropdown(false);
+                      }
+                    }}
                     style={{ border: 'none', outline: 'none', padding: '0.45rem 0', fontSize: '0.88rem', width: '100%', backgroundColor: 'transparent' }}
                   />
+                  <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 800, backgroundColor: '#f0fdfa', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid #ccfbf1', marginRight: '0.4rem', whiteSpace: 'nowrap' }}>
+                    Alt+F
+                  </span>
                   {quickLookupQuery && (
                     <button 
                       type="button" 
@@ -3160,16 +3376,19 @@ export default function App() {
 
                 {/* Autocomplete Dropdown */}
                 {showQuickLookupDropdown && quickLookupQuery.trim() && (
-                  <div className="quick-lookup-dropdown" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>
+                  <div className="quick-lookup-dropdown" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '280px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, backgroundColor: '#f8fafc' }}>
                       <span>Matching Patient Prescriptions ({getQuickLookupResults().length})</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setShowQuickLookupDropdown(false)}
-                        style={{ background: 'transparent', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 700 }}
-                      >
-                        Close ✕
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#0f766e', fontWeight: 700 }}>↑ / ↓ navigate • ↵ Enter to Select</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setShowQuickLookupDropdown(false)}
+                          style={{ background: 'transparent', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          Close ✕
+                        </button>
+                      </div>
                     </div>
 
                     {getQuickLookupResults().length === 0 ? (
@@ -3177,10 +3396,28 @@ export default function App() {
                         No past prescriptions found matching "{quickLookupQuery}".
                       </div>
                     ) : (
-                      getQuickLookupResults().map(rx => {
+                      getQuickLookupResults().map((rx, idx) => {
+                        const isHighlighted = idx === quickLookupHighlightedIndex;
                         const medCount = (typeof rx.medications === 'string' ? JSON.parse(rx.medications) : (rx.medications || [])).length;
                         return (
-                          <div key={rx.id} className="quick-lookup-item">
+                          <div 
+                            key={rx.id} 
+                            id={`quick-lookup-item-${idx}`}
+                            className="quick-lookup-item"
+                            onMouseEnter={() => setQuickLookupHighlightedIndex(idx)}
+                            onClick={() => {
+                              startNewFollowUpFromPatient(rx);
+                              setShowQuickLookupDropdown(false);
+                              setQuickLookupQuery('');
+                              setTimeout(() => medNameInputRef.current?.focus(), 150);
+                            }}
+                            style={{
+                              backgroundColor: isHighlighted ? '#ccfbf1' : '#ffffff',
+                              borderLeft: isHighlighted ? '4px solid #0f766e' : '4px solid transparent',
+                              transition: 'all 0.1s ease',
+                              cursor: 'pointer'
+                            }}
+                          >
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <span style={{ fontWeight: 800, color: 'var(--neutral-dark)', fontSize: '0.9rem' }}>{rx.patientName}</span>
@@ -3189,12 +3426,17 @@ export default function App() {
                                     Ref: {rx.referenceId}
                                   </span>
                                 )}
+                                {isHighlighted && (
+                                  <span style={{ fontSize: '0.68rem', backgroundColor: '#0f766e', color: '#ffffff', padding: '0.1rem 0.35rem', borderRadius: '3px', fontWeight: 800 }}>
+                                    ↵ Enter
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--neutral-body)' }}>
                                 {rx.patientAge} Yrs / {rx.patientGender} • {formatPrintDate(rx.consultDate || rx.createdAt)} • {medCount} Meds Prescribed
                               </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem' }} onClick={e => e.stopPropagation()}>
                               <button 
                                 type="button" 
                                 className="btn btn-primary"
@@ -3202,6 +3444,7 @@ export default function App() {
                                   startNewFollowUpFromPatient(rx);
                                   setShowQuickLookupDropdown(false);
                                   setQuickLookupQuery('');
+                                  setTimeout(() => medNameInputRef.current?.focus(), 150);
                                 }}
                                 style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
                                 title="Start a fresh follow-up visit for this patient with new Serial Ref ID"
@@ -4043,7 +4286,36 @@ export default function App() {
                         if (!currentCat) return null;
 
                         return (
-                          <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div 
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (!currentCat || currentCat.symptoms.length === 0) return;
+                              if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                setSymptomHighlightedIndex(prev => {
+                                  const next = (prev + 1) % currentCat.symptoms.length;
+                                  document.getElementById(`symptom-item-${next}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                  return next;
+                                });
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                setSymptomHighlightedIndex(prev => {
+                                  const next = prev <= 0 ? currentCat.symptoms.length - 1 : prev - 1;
+                                  document.getElementById(`symptom-item-${next}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                  return next;
+                                });
+                              } else if (e.key === ' ' || e.key === 'Enter') {
+                                e.preventDefault();
+                                const sym = currentCat.symptoms[symptomHighlightedIndex];
+                                if (sym) toggleSymptom(sym);
+                              }
+                            }}
+                            style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', outline: 'none' }}
+                          >
+                            <div style={{ padding: '0.25rem 0.6rem', backgroundColor: '#f0fdfa', borderBottom: '1px solid #ccfbf1', fontSize: '0.7rem', color: '#0f766e', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Checklist ({currentCat.symptoms.length})</span>
+                              <span>↑ / ↓ navigate • Space / ↵ Enter to toggle</span>
+                            </div>
                             <div style={{ maxHeight: '170px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                               {currentCat.symptoms.length === 0 ? (
                                 <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
@@ -4052,19 +4324,23 @@ export default function App() {
                               ) : (
                                 currentCat.symptoms.map((sym, sIdx) => {
                                   const checked = isSymptomChecked(sym);
+                                  const isHighlighted = sIdx === symptomHighlightedIndex;
                                   return (
                                     <div
                                       key={sIdx}
+                                      id={`symptom-item-${sIdx}`}
                                       style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         padding: '0.4rem 0.65rem',
                                         borderBottom: '1px solid #f1f5f9',
-                                        backgroundColor: checked ? '#f0fdfa' : '#ffffff',
+                                        backgroundColor: checked ? '#f0fdfa' : isHighlighted ? '#e6fffa' : '#ffffff',
+                                        borderLeft: isHighlighted ? '3px solid #0f766e' : '3px solid transparent',
                                         cursor: 'pointer',
                                         transition: 'background-color 0.1s ease'
                                       }}
+                                      onMouseEnter={() => setSymptomHighlightedIndex(sIdx)}
                                       onClick={() => toggleSymptom(sym)}
                                     >
                                       {/* Left side: Checkbox + Symptom Text */}
@@ -4153,22 +4429,41 @@ export default function App() {
                   )}
 
                   <textarea 
+                    ref={chiefComplaintsInputRef}
                     placeholder="e.g. High pulse, palpitations, heaviness in head (Click 'Quick Symptom Checklist' above to tick symptoms with 1 click)"
                     rows="3"
                     value={offlineForm.chiefComplaints}
                     onChange={e => setOfflineForm(prev => ({ ...prev, chiefComplaints: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.altKey)) {
+                        e.preventDefault();
+                        diagnosisInputRef.current?.focus();
+                      }
+                    }}
                     style={{ lineHeight: 1.5 }}
                   />
                 </div>
 
                 {/* Diagnosis */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Clinical Diagnosis</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Clinical Diagnosis</label>
+                    <span style={{ fontSize: '0.7rem', color: '#0f766e', fontWeight: 700, backgroundColor: '#f0fdfa', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid #ccfbf1' }}>
+                      Alt+D • ↵ Enter jumps to Meds
+                    </span>
+                  </div>
                   <textarea 
+                    ref={diagnosisInputRef}
                     placeholder="e.g. Mild anxiety disorder with secondary insomnia"
                     rows="2"
                     value={offlineForm.diagnosis}
                     onChange={e => setOfflineForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        medNameInputRef.current?.focus();
+                      }
+                    }}
                     required
                   />
                 </div>
@@ -4251,7 +4546,12 @@ export default function App() {
                     <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {/* Medicine Name */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Medicine Name</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Medicine Name</label>
+                          <span style={{ fontSize: '0.7rem', color: '#0f766e', fontWeight: 700, backgroundColor: '#f0fdfa', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid #ccfbf1' }}>
+                            Alt+M • ↑ / ↓ navigate • ↵ Enter to pick
+                          </span>
+                        </div>
                         <input 
                           ref={medNameInputRef}
                           type="text" 
@@ -4260,97 +4560,178 @@ export default function App() {
                           onChange={e => {
                             setTempMed(prev => ({ ...prev, name: e.target.value }));
                             setActiveSearchIndex(999);
+                            setMedHighlightedIndex(0);
                           }}
-                          onFocus={() => setActiveSearchIndex(999)}
+                          onFocus={() => {
+                            setActiveSearchIndex(999);
+                            setMedHighlightedIndex(0);
+                          }}
                           onBlur={() => {
                             setTimeout(() => {
                               setActiveSearchIndex(null);
-                            }, 150);
+                            }, 250);
                           }}
                           onKeyDown={e => {
-                            if (e.key === 'Enter') {
+                            if (e.key === 'ArrowDown') {
+                              if (activeSearchIndex === 999 && filteredMeds.length > 0) {
+                                e.preventDefault();
+                                setMedHighlightedIndex(prev => {
+                                  const next = (prev + 1) % filteredMeds.length;
+                                  const el = document.getElementById(`med-dropdown-item-${next}`);
+                                  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                  return next;
+                                });
+                              }
+                            } else if (e.key === 'ArrowUp') {
+                              if (activeSearchIndex === 999 && filteredMeds.length > 0) {
+                                e.preventDefault();
+                                setMedHighlightedIndex(prev => {
+                                  const next = prev <= 0 ? filteredMeds.length - 1 : prev - 1;
+                                  const el = document.getElementById(`med-dropdown-item-${next}`);
+                                  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                  return next;
+                                });
+                              }
+                            } else if (e.key === 'Enter') {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (tempMed.name.trim()) {
+                              if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
+                                const selected = filteredMeds[medHighlightedIndex];
+                                setTempMed({
+                                  name: selected.name,
+                                  composition: selected.composition || '',
+                                  dosage: selected.dosage || '',
+                                  frequency: tempMed.frequency || ''
+                                });
+                                setActiveSearchIndex(null);
+                                setMedHighlightedIndex(0);
+                                setTimeout(() => {
+                                  if (selected.dosage) {
+                                    medFrequencyInputRef.current?.focus();
+                                  } else {
+                                    medDosageInputRef.current?.focus();
+                                  }
+                                }, 60);
+                              } else if (tempMed.name.trim()) {
+                                setActiveSearchIndex(null);
                                 if (tempMed.dosage || tempMed.frequency) {
                                   handleAddMedicineToRx();
                                 } else {
                                   medDosageInputRef.current?.focus();
                                 }
                               }
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setActiveSearchIndex(null);
+                            } else if (e.key === 'Tab' && !e.shiftKey) {
+                              if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
+                                e.preventDefault();
+                                const selected = filteredMeds[medHighlightedIndex];
+                                setTempMed({
+                                  name: selected.name,
+                                  composition: selected.composition || '',
+                                  dosage: selected.dosage || '',
+                                  frequency: tempMed.frequency || ''
+                                });
+                                setActiveSearchIndex(null);
+                                setMedHighlightedIndex(0);
+                                setTimeout(() => {
+                                  if (selected.dosage) {
+                                    medFrequencyInputRef.current?.focus();
+                                  } else {
+                                    medDosageInputRef.current?.focus();
+                                  }
+                                }, 60);
+                              }
                             }
                           }}
                           style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                         />
                         
-                        {/* Autocomplete Dropdown list */}
+                        {/* Autocomplete Dropdown list with keyboard navigation & scroll */}
                         {activeSearchIndex === 999 && tempMed.name.trim() !== '' && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '100%',
-                            left: 0,
-                            right: 0,
-                            backgroundColor: '#fff',
-                            border: '1px solid var(--neutral-border)',
-                            borderRadius: '6px',
-                            maxHeight: '180px',
-                            overflowY: 'auto',
-                            zIndex: 100,
-                            boxShadow: 'var(--shadow-lg)'
-                          }}>
-                            {(() => {
-                              const filtered = medicinesList.filter(m => 
-                                m.name.toLowerCase().includes(tempMed.name.toLowerCase()) ||
-                                (m.composition && m.composition.toLowerCase().includes(tempMed.name.toLowerCase()))
-                              );
-                              if (filtered.length === 0) {
+                          <div 
+                            ref={medDropdownRef}
+                            style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: 0,
+                              right: 0,
+                              backgroundColor: '#fff',
+                              border: '1.5px solid var(--primary)',
+                              borderRadius: '8px',
+                              maxHeight: '220px',
+                              overflowY: 'auto',
+                              zIndex: 100,
+                              boxShadow: 'var(--shadow-lg)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.75rem', backgroundColor: '#f0fdfa', borderBottom: '1px solid #ccfbf1', fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>
+                              <span>Matching Medicines ({filteredMeds.length})</span>
+                              <span>↑ / ↓ navigate • ↵ Enter to select</span>
+                            </div>
+                            {filteredMeds.length === 0 ? (
+                              <div style={{ padding: '0.65rem 0.75rem', fontSize: '0.8rem', color: 'var(--neutral-body)', fontStyle: 'italic' }}>
+                                No matching medicines in DB. Press ↵ Enter to enter custom dosage.
+                              </div>
+                            ) : (
+                              filteredMeds.map((m, idx) => {
+                                const isSelected = idx === medHighlightedIndex;
                                 return (
-                                  <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--neutral-body)', fontStyle: 'italic' }}>
-                                    No matching medicines in DB.
+                                  <div 
+                                    key={m.id || idx}
+                                    id={`med-dropdown-item-${idx}`}
+                                    onMouseDown={() => {
+                                      setTempMed({
+                                        name: m.name,
+                                        composition: m.composition || '',
+                                        dosage: m.dosage || '',
+                                        frequency: tempMed.frequency || ''
+                                      });
+                                      setActiveSearchIndex(null);
+                                      setMedHighlightedIndex(0);
+                                      setTimeout(() => {
+                                        if (m.dosage) {
+                                          medFrequencyInputRef.current?.focus();
+                                        } else {
+                                          medDosageInputRef.current?.focus();
+                                        }
+                                      }, 60);
+                                    }}
+                                    onMouseEnter={() => setMedHighlightedIndex(idx)}
+                                    style={{
+                                      padding: '0.55rem 0.85rem',
+                                      fontSize: '0.82rem',
+                                      cursor: 'pointer',
+                                      borderBottom: '1px solid #f1f5f9',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      backgroundColor: isSelected ? '#ccfbf1' : '#ffffff',
+                                      borderLeft: isSelected ? '4px solid #0f766e' : '4px solid transparent',
+                                      transition: 'background-color 0.1s ease'
+                                    }}
+                                  >
+                                    <div>
+                                      <strong style={{ color: isSelected ? '#0f766e' : 'var(--neutral-dark)' }}>{m.name}</strong>
+                                      {m.composition && (
+                                        <span style={{ fontSize: '0.74rem', color: '#b91c1c', fontStyle: 'italic', marginLeft: '0.35rem' }}>
+                                          ({m.composition})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {m.dosage && (
+                                        <span style={{ fontSize: '0.72rem', color: isSelected ? '#0f766e' : 'var(--neutral-body)', fontWeight: 600 }}>{m.dosage}</span>
+                                      )}
+                                      {isSelected && (
+                                        <span style={{ fontSize: '0.68rem', backgroundColor: '#0f766e', color: '#ffffff', padding: '0.1rem 0.35rem', borderRadius: '3px', fontWeight: 800 }}>↵ Enter</span>
+                                      )}
+                                    </div>
                                   </div>
                                 );
-                              }
-                              return filtered.map(m => (
-                                <div 
-                                  key={m.id}
-                                  onMouseDown={() => {
-                                    setTempMed({
-                                      name: m.name,
-                                      composition: m.composition || '',
-                                      dosage: m.dosage || '',
-                                      frequency: tempMed.frequency || ''
-                                    });
-                                    setActiveSearchIndex(null);
-                                    setTimeout(() => {
-                                      medFrequencyInputRef.current?.focus();
-                                    }, 50);
-                                  }}
-                                  style={{
-                                    padding: '0.5rem 0.75rem',
-                                    fontSize: '0.8rem',
-                                    cursor: 'pointer',
-                                    borderBottom: '1px solid #f1f5f9',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    backgroundColor: '#fff'
-                                  }}
-                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}
-                                >
-                                  <div>
-                                    <strong style={{ color: 'var(--neutral-dark)' }}>{m.name}</strong>
-                                    {m.composition && (
-                                      <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontStyle: 'italic', marginLeft: '0.35rem' }}>
-                                        ({m.composition})
-                                      </span>
-                                    )}
-                                  </div>
-                                  {m.dosage && (
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--neutral-body)' }}>{m.dosage}</span>
-                                  )}
-                                </div>
-                              ));
-                            })()}
+                              })
+                            )}
                           </div>
                         )}
                       </div>
@@ -4737,11 +5118,13 @@ export default function App() {
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                    💾 Save Digital Rx
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
+                    <span>💾 Save Digital Rx</span>
+                    <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.22)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+↵ / Alt+S</span>
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={resetOfflineForm}>
-                    🧹 Reset Form
+                  <button type="button" className="btn btn-secondary" onClick={resetOfflineForm} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>🧹 Reset Form</span>
+                    <span style={{ fontSize: '0.68rem', backgroundColor: '#f1f5f9', color: '#64748b', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>Alt+R</span>
                   </button>
                 </div>
               </form>
@@ -4781,7 +5164,8 @@ export default function App() {
                   onClick={handlePrintPrescription}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
                 >
-                  🖨️ Print Prescription
+                  <span>🖨️ Print Prescription</span>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+P / Alt+P</span>
                 </button>
               </div>
 
@@ -5140,8 +5524,33 @@ export default function App() {
                 </div>
               )}
 
-                {/* Printable Preview Sheet Box */}
-                <div className="print-preview-container-wrapper" style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)' }}>
+                {/* Printable Preview Sheet Box with keyboard scrolling */}
+                <div 
+                  ref={previewScrollRef}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      previewScrollRef.current?.scrollBy({ top: 140, behavior: 'smooth' });
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      previewScrollRef.current?.scrollBy({ top: -140, behavior: 'smooth' });
+                    } else if (e.key === 'PageDown') {
+                      e.preventDefault();
+                      previewScrollRef.current?.scrollBy({ top: 400, behavior: 'smooth' });
+                    } else if (e.key === 'PageUp') {
+                      e.preventDefault();
+                      previewScrollRef.current?.scrollBy({ top: -400, behavior: 'smooth' });
+                    }
+                  }}
+                  className="print-preview-container-wrapper" 
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', maxHeight: '85vh', overflowY: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                  title="Click to focus preview sheet - navigate with ↑ / ↓ or PageUp / PageDown"
+                >
+                  <div className="no-print" style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>📄</span>
+                    <span>Live Prescription Preview • Click to focus & scroll with ↑ / ↓ or PageDown</span>
+                  </div>
                   
                   {/* Printable Page Sheet */}
                   <div 
@@ -6971,6 +7380,242 @@ export default function App() {
               })()}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Zero-Mouse Fast Keyboard Mode Floating Trigger */}
+      {dashboardView === 'offline-rx' && (
+        <button
+          type="button"
+          onClick={() => setShowShortcutsModal(true)}
+          className="no-print"
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            right: '1.5rem',
+            backgroundColor: '#0f766e',
+            color: '#ffffff',
+            border: '2px solid #2dd4bf',
+            borderRadius: '30px',
+            padding: '0.6rem 1.15rem',
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            boxShadow: '0 6px 20px rgba(15,118,110,0.35)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            zIndex: 9999,
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+          title="Open Zero-Mouse Keyboard Shortcuts Cheat Sheet (or press F1 / ?)"
+        >
+          <span style={{ fontSize: '1.1rem' }}>⌨️</span>
+          <span>Zero-Mouse Shortcuts</span>
+          <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(255,255,255,0.22)', padding: '0.12rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>F1</span>
+        </button>
+      )}
+
+      {/* =========================================================================
+          KEYBOARD SHORTCUTS REFERENCE MODAL (ZERO-MOUSE FAST MODE)
+          ========================================================================= */}
+      {showShortcutsModal && (
+        <div 
+          className="no-print"
+          onClick={() => setShowShortcutsModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1.5rem'
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              border: '1px solid #cbd5e1',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f0fdfa' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '1.6rem' }}>⌨️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f766e', fontWeight: 800 }}>
+                    Zero-Mouse Fast Keyboard Guide
+                  </h3>
+                  <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                    Prescribe, navigate patients, search drugs & print in seconds without touching your mouse!
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowShortcutsModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#64748b', padding: '0.2rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body Sections */}
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* 1. Rapid Medicine Prescribing */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.9rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>💊</span> Rapid Medicine Prescribing Flow (Zero-Mouse)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>1. Type Medicine Name in search box</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>Autocomplete opens</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>2. Navigate suggestions list (with auto-scroll)</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#ccfbf1', color: '#0f766e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↓ / ↑ Arrow Keys</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>3. Select highlighted drug (auto-fills dosage & generic)</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#ccfbf1', color: '#0f766e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>4. Advance through Dosage & Frequency fields</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>5. Add to Rx table & automatically reset cursor to Medicine Name</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter on Frequency</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Patient & OPD Queue Navigation */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.9rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>👥</span> Patient & Live Queue Shortcuts
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Consult Next Waiting Patient from OPD Queue</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#0f766e', color: '#ffffff', padding: '0.15rem 0.55rem', borderRadius: '4px' }}>Alt + N</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Jump to Quick Patient / Serial No Search Bar</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.55rem', borderRadius: '4px' }}>Alt + F (or Ctrl + K)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Navigate search results list</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#ccfbf1', color: '#0f766e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↓ / ↑ Arrow Keys</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Start today's follow-up consultation</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Open & inspect past prescription</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>Shift + Enter</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Quick Form Navigation Jumps */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.9rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>⚡</span> Quick Input Jumps
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.82rem', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <span>Medicine Name</span>
+                    <span style={{ fontWeight: 800, color: '#0f766e' }}>Alt + M</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <span>Diagnosis</span>
+                    <span style={{ fontWeight: 800, color: '#0f766e' }}>Alt + D</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <span>Chief Complaints</span>
+                    <span style={{ fontWeight: 800, color: '#0f766e' }}>Alt + C</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <span>Clear / Reset Form</span>
+                    <span style={{ fontWeight: 800, color: '#dc2626' }}>Alt + R</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Save & Print Actions */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.9rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>💾</span> Save & Print (Instant Finishing)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Save Digital Rx (without printing)</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#0f766e', color: '#ffffff', padding: '0.15rem 0.55rem', borderRadius: '4px' }}>Ctrl + Enter (or Alt + S)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Save & Print Formatted Prescription</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#2563eb', color: '#ffffff', padding: '0.15rem 0.55rem', borderRadius: '4px' }}>Ctrl + P (or Alt + P)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Smooth Arrow Key Scrolling */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: 800, color: '#0f766e', fontSize: '0.9rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span>📜</span> Keyboard Scrolling (Zero Mouse Wheel)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', color: '#334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Smooth page scroll anywhere</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>Alt + ↓ / Alt + ↑</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Fast vertical page jump</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>PageDown / PageUp</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Printable preview sheet scroll</span>
+                    <span style={{ fontWeight: 800, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>Click sheet & use ↑ / ↓</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '0.85rem 1.5rem', backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Press <strong>F1</strong> or <strong>Esc</strong> to close</span>
+              <button 
+                type="button" 
+                onClick={() => setShowShortcutsModal(false)}
+                className="btn btn-primary"
+                style={{ padding: '0.35rem 1rem', fontSize: '0.82rem' }}
+              >
+                Got It! ⚡
+              </button>
+            </div>
           </div>
         </div>
       )}
