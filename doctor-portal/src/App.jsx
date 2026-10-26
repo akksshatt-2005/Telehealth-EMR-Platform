@@ -208,7 +208,173 @@ const DEFAULT_SYMPTOM_TEMPLATES = [
   }
 ];
 
+export const SMART_TIMING_RULES = [
+  {
+    category: 'antacid',
+    label: 'Empty stomach (सुबह खाली पेट)',
+    regex: /\b(pantop|pantoprazole|pan\s*40|pan\s*d|pantocid|pantodac|rabeprazole|rabicip|rabeloc|rabemac|omeprazole|omez|omizac|esomeprazole|nexpro|sompraz|esomac|sucralfate|digene|gelusil|mucaine|ilaprazole|lansoprazole)\b/i,
+    bilingual: '1-0-0 (सुबह खाली पेट / Empty stomach in morning)',
+    hindi: '1-0-0 (सुबह खाली पेट - नाश्ते से आधा घंटा पहले)',
+    english: '1-0-0 (Empty stomach - 30 mins before breakfast)'
+  },
+  {
+    category: 'bedtime_sedative',
+    label: 'Bedtime (रात को सोने से पहले)',
+    regex: /\b(clonazepam|zapiz|clona|lonazep|rivotril|etizolam|etilaam|etizest|zolpidem|zolfresh|nitrest|melatonin|meloset|alprazolam|alprax|restyl|trika|olanzapine|oliza|olexar|quetiapine|quipin|seroque|mirtazapine|mirnite|amitriptyline|tryptomer|triptomer|nitrazepam|dornit|lorazepam|ativan|trapex|pregabalin|prebaxe|maxgalin|lyrica|gabapentin|gabapin)\b/i,
+    bilingual: '0-0-1 (रात को सोने से पहले / At bedtime)',
+    hindi: '0-0-1 (रात को सोने से पहले)',
+    english: '0-0-1 (At bedtime / At night)'
+  },
+  {
+    category: 'painkiller',
+    label: 'After meals (खाना खाने के बाद)',
+    regex: /\b(paracetamol|pcm|dolo|calpol|crocin|pacimol|combiflam|flexon|zerodol|hifenac|aceclofenac|diclofenac|voveran|dynapar|voltaren|ibuprofen|brufen|naproxen|naprosyn|tramadol|ultracet|ketorolac|ketanov|etoricoxib|nucoxia|etoshine|thiocolchicoside|myoril|baclofen|lioresal)\b/i,
+    bilingual: '1-0-1 (खाना खाने के बाद / After meals)',
+    hindi: '1-0-1 (सुबह-शाम खाना खाने के बाद)',
+    english: '1-0-1 (Twice daily after meals)'
+  },
+  {
+    category: 'sos',
+    label: 'SOS (ज़रूरत पड़ने पर)',
+    regex: /\b(sos|sumatriptan|sunitrex|migranil|rizatriptan|rizact|ondansetron|vomikind|emeset|domperidone|vomistop|stemetil|prochlorperazine|vertin|betahistine|sorbitrate|nitroglycerin)\b/i,
+    bilingual: 'SOS (ज़रूरत पड़ने पर / As needed)',
+    hindi: 'SOS (ज़रूरत पड़ने पर)',
+    english: 'SOS (When required / As needed)'
+  },
+  {
+    category: 'thyroid',
+    label: 'Early morning empty stomach (सुबह उठते ही)',
+    regex: /\b(thyronorm|eltroxin|thyroxine|levothyroxine)\b/i,
+    bilingual: '1-0-0 (सुबह उठते ही खाली पेट / Early morning empty stomach)',
+    hindi: '1-0-0 (सुबह उठते ही खाली पेट)',
+    english: '1-0-0 (Early morning empty stomach)'
+  },
+  {
+    category: 'morning_cardio_neuro',
+    label: 'Morning after breakfast (नाश्ते के बाद)',
+    regex: /\b(telmisartan|telma|telmikind|amlodipine|amlong|cilnidipine|cilacar|losartan|atenolol|escitalopram|nexito|stalopam|sertraline|serlift|daxid|fluoxetine|prozac|fludac|duloxetine|duzela|symbal|vortioxetine|modafinil|modalert|armodafinil|waklert)\b/i,
+    bilingual: '1-0-0 (सुबह नाश्ते के बाद / Morning after breakfast)',
+    hindi: '1-0-0 (सुबह नाश्ते के बाद)',
+    english: '1-0-0 (Once daily after breakfast)'
+  },
+  {
+    category: 'supplements',
+    label: 'After lunch (दोपहर खाने के बाद)',
+    regex: /\b(neurobion|becosules|zincovit|methylcobalamin|nurokind|nurobest|calcium|shelcal|gemcal|calcimax|vitamin\s*d|d3|calcirol|uprise|cholecalciferol|multivitamin|folic\s*acid|folvite)\b/i,
+    bilingual: '0-1-0 (दोपहर खाने के बाद / After lunch)',
+    hindi: '0-1-0 (दोपहर खाने के बाद)',
+    english: '0-1-0 (Once daily after lunch)'
+  },
+  {
+    category: 'antibiotic',
+    label: 'Twice daily 5 days (खाना खाने के बाद)',
+    regex: /\b(amoxicillin|mox|novamox|augmentin|moxikind|clavum|azithromycin|azithral|aziwok|zady|cefixime|taxim|zifi|mahacef|ciprofloxacin|ciplox|ofloxacin|zanocin|levofloxacin|levomac|metronidazole|flagyl|doxycycline|doxypal)\b/i,
+    bilingual: '1-0-1 (खाना खाने के बाद - 5 दिन / After meals - 5 days)',
+    hindi: '1-0-1 (खाना खाने के बाद - 5 दिन)',
+    english: '1-0-1 (Twice daily after meals - for 5 days)'
+  },
+  {
+    category: 'antiepileptic',
+    label: 'Fixed time after meals (नियमित समय पर)',
+    regex: /\b(levetiracetam|levipil|epilive|torleva|valproate|valparin|encorate|epitec|divalproex|depakote|oxcarbazepine|oxitol|oleptal|trileptal|carbamazepine|tegretol|mazetol|lacosamide|lacoxa|lacoset|lamotrigine|lamitor|lamictal|topiramate|topamac)\b/i,
+    bilingual: '1-0-1 (नियमित समय पर खाने के बाद / Twice daily after meals)',
+    hindi: '1-0-1 (नियमित समय पर खाने के बाद)',
+    english: '1-0-1 (Twice daily after meals at fixed times)'
+  },
+  {
+    category: 'statin',
+    label: 'Night after dinner (रात खाने के बाद)',
+    regex: /\b(atorvastatin|atorva|atorlip|storvas|rosuvastatin|rosuvas|rozavel)\b/i,
+    bilingual: '0-0-1 (रात को खाने के बाद / Night after dinner)',
+    hindi: '0-0-1 (रात को खाने के बाद)',
+    english: '0-0-1 (Night after dinner)'
+  },
+  {
+    category: 'antidiabetic',
+    label: 'Before meals (खाने से पहले)',
+    regex: /\b(metformin|glycomet|glimepiride|amaryl|vildagliptin|galvus|sitagliptin|januvia|teneligliptin)\b/i,
+    bilingual: '1-0-1 (खाने से पहले / Before meals)',
+    hindi: '1-0-1 (खाने से 15 मिनट पहले)',
+    english: '1-0-1 (15 mins before meals)'
+  }
+];
+
+export const detectSmartDrugTiming = (name = '', composition = '', lang = 'bilingual') => {
+  const combined = `${name || ''} ${composition || ''}`.trim().toLowerCase();
+  if (!combined) return '';
+  for (const rule of SMART_TIMING_RULES) {
+    if (rule.regex.test(combined)) {
+      if (lang === 'hindi') return rule.hindi;
+      if (lang === 'english') return rule.english;
+      return rule.bilingual;
+    }
+  }
+  return '';
+};
+
+export const TIMING_QUICK_PRESETS = [
+  {
+    id: 'empty_stomach',
+    icon: '🌅',
+    shortLabel: '1-0-0 खाली पेट',
+    bilingual: '1-0-0 (सुबह खाली पेट / Empty stomach in morning)',
+    hindi: '1-0-0 (सुबह खाली पेट - नाश्ते से 30 मिनट पहले)',
+    english: '1-0-0 (Empty stomach - 30 mins before breakfast)'
+  },
+  {
+    id: 'morning_after_meal',
+    icon: '☀️',
+    shortLabel: '1-0-0 नाश्ते बाद',
+    bilingual: '1-0-0 (सुबह नाश्ते के बाद / Morning after breakfast)',
+    hindi: '1-0-0 (सुबह नाश्ते के बाद)',
+    english: '1-0-0 (Once daily after breakfast)'
+  },
+  {
+    id: 'twice_daily_meals',
+    icon: '🍽️',
+    shortLabel: '1-0-1 खाने बाद',
+    bilingual: '1-0-1 (खाना खाने के बाद / Twice daily after meals)',
+    hindi: '1-0-1 (सुबह-शाम खाना खाने के बाद)',
+    english: '1-0-1 (Twice daily after meals)'
+  },
+  {
+    id: 'night_bedtime',
+    icon: '🌙',
+    shortLabel: '0-0-1 रात',
+    bilingual: '0-0-1 (रात को सोने से पहले / At bedtime)',
+    hindi: '0-0-1 (रात को सोने से पहले)',
+    english: '0-0-1 (At bedtime / At night)'
+  },
+  {
+    id: 'thrice_daily',
+    icon: '🍱',
+    shortLabel: '1-1-1 तीनों पहर',
+    bilingual: '1-1-1 (सुबह-दोपहर-रात खाने बाद / After meals thrice daily)',
+    hindi: '1-1-1 (सुबह-दोपहर-रात खाने के बाद)',
+    english: '1-1-1 (Thrice daily after meals)'
+  },
+  {
+    id: 'sos',
+    icon: '⚡',
+    shortLabel: 'SOS ज़रूरत पर',
+    bilingual: 'SOS (ज़रूरत पड़ने पर / As needed)',
+    hindi: 'SOS (ज़रूरत पड़ने पर)',
+    english: 'SOS (When required / As needed)'
+  }
+];
+
+export const getPresetTimingValue = (presetId, lang = 'bilingual') => {
+  const p = TIMING_QUICK_PRESETS.find(x => x.id === presetId);
+  if (!p) return '';
+  if (lang === 'hindi') return p.hindi;
+  if (lang === 'english') return p.english;
+  return p.bilingual;
+};
+
 export default function App() {
+  const [rxInstructionLanguage, setRxInstructionLanguage] = useState(() => {
+    return localStorage.getItem('rxInstructionLanguage') || 'bilingual';
+  });
   const [token, setToken] = useState(localStorage.getItem('doc_token') || '');
   const [user, setUser] = useState(() => {
     try {
@@ -1594,6 +1760,17 @@ export default function App() {
       ...prev,
       medications: updatedMeds
     }));
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setRxInstructionLanguage(newLang);
+    localStorage.setItem('rxInstructionLanguage', newLang);
+    if (tempMed.name && tempMed.name.trim()) {
+      const auto = detectSmartDrugTiming(tempMed.name, tempMed.composition, newLang);
+      if (auto) {
+        setTempMed(prev => ({ ...prev, frequency: auto }));
+      }
+    }
   };
 
   // Add medicine to current offline prescription AND auto-save/sync to medicine database
@@ -4491,55 +4668,121 @@ export default function App() {
                       display: 'flex', 
                       justifyContent: 'space-between', 
                       alignItems: 'center',
-                      borderBottom: '1px solid var(--neutral-border)'
+                      borderBottom: '1px solid var(--neutral-border)',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem'
                     }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary)' }}>
-                        💊 ADD MEDICINE TO RX
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={async () => {
-                          if (!tempMed.name.trim()) {
-                            alert('Please fill out the Medicine Name to save to database.');
-                            return;
-                          }
-                          try {
-                            const response = await fetch(`${API_BASE_URL}/doctor/medicines`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                              },
-                              body: JSON.stringify({
-                                name: tempMed.name.trim(),
-                                composition: tempMed.composition ? tempMed.composition.trim() : null,
-                                dosage: tempMed.dosage ? tempMed.dosage.trim() : null
-                              })
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                              setMedicinesList(prev => {
-                                const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
-                                if (exists) {
-                                  return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
-                                }
-                                return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
-                              });
-                              alert(`"${tempMed.name}" saved to Medicine Database!`);
-                            } else {
-                              alert(data.message || 'Failed to save to database.');
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary)' }}>
+                          💊 ADD MEDICINE TO RX
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        {/* Rx Instruction Language Selector */}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#e2e8f0', borderRadius: '6px', padding: '2px', fontSize: '0.68rem' }}>
+                          <span style={{ padding: '0 0.35rem', color: '#475569', fontWeight: 700, fontSize: '0.66rem' }}>Rx Lang:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleLanguageChange('bilingual')}
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              border: 'none',
+                              borderRadius: '4px',
+                              backgroundColor: rxInstructionLanguage === 'bilingual' ? '#0f766e' : 'transparent',
+                              color: rxInstructionLanguage === 'bilingual' ? '#ffffff' : '#334155',
+                              fontWeight: rxInstructionLanguage === 'bilingual' ? 700 : 500,
+                              cursor: 'pointer',
+                              fontSize: '0.68rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Bilingual: 1-0-0 (सुबह खाली पेट / Empty stomach in morning)"
+                          >
+                            🌐 Bilingual (हिंदी + Eng)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLanguageChange('hindi')}
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              border: 'none',
+                              borderRadius: '4px',
+                              backgroundColor: rxInstructionLanguage === 'hindi' ? '#0f766e' : 'transparent',
+                              color: rxInstructionLanguage === 'hindi' ? '#ffffff' : '#334155',
+                              fontWeight: rxInstructionLanguage === 'hindi' ? 700 : 500,
+                              cursor: 'pointer',
+                              fontSize: '0.68rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Hindi: 1-0-0 (सुबह खाली पेट)"
+                          >
+                            🇮🇳 हिंदी
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLanguageChange('english')}
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              border: 'none',
+                              borderRadius: '4px',
+                              backgroundColor: rxInstructionLanguage === 'english' ? '#0f766e' : 'transparent',
+                              color: rxInstructionLanguage === 'english' ? '#ffffff' : '#334155',
+                              fontWeight: rxInstructionLanguage === 'english' ? 700 : 500,
+                              cursor: 'pointer',
+                              fontSize: '0.68rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="English: 1-0-0 (Empty stomach - 30 mins before breakfast)"
+                          >
+                            🇬🇧 English
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={async () => {
+                            if (!tempMed.name.trim()) {
+                              alert('Please fill out the Medicine Name to save to database.');
+                              return;
                             }
-                          } catch (err) {
-                            alert('Error saving to database.');
-                            console.error(err);
-                          }
-                        }}
-                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                        title="Save this medicine to your database inventory"
-                      >
-                        💾 Save to DB
-                      </button>
+                            try {
+                              const response = await fetch(`${API_BASE_URL}/doctor/medicines`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                  name: tempMed.name.trim(),
+                                  composition: tempMed.composition ? tempMed.composition.trim() : null,
+                                  dosage: tempMed.dosage ? tempMed.dosage.trim() : null
+                                })
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                setMedicinesList(prev => {
+                                  const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
+                                  if (exists) {
+                                    return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
+                                  }
+                                  return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
+                                });
+                                alert(`"${tempMed.name}" saved to Medicine Database!`);
+                              } else {
+                                alert(data.message || 'Failed to save to database.');
+                              }
+                            } catch (err) {
+                              alert('Error saving to database.');
+                              console.error(err);
+                            }
+                          }}
+                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                          title="Save this medicine to your database inventory"
+                        >
+                          💾 Save to DB
+                        </button>
+                      </div>
                     </div>
 
                     {/* Stacked Inputs */}
@@ -4555,7 +4798,7 @@ export default function App() {
                         <input 
                           ref={medNameInputRef}
                           type="text" 
-                          placeholder="e.g. Tab. Paracetamol 650mg"
+                          placeholder="e.g. Tab. Pantop 40mg, Dolo 650, Zapiz 0.25"
                           value={tempMed.name}
                           onChange={e => {
                             setTempMed(prev => ({ ...prev, name: e.target.value }));
@@ -4570,6 +4813,12 @@ export default function App() {
                             setTimeout(() => {
                               setActiveSearchIndex(null);
                             }, 250);
+                            if (tempMed.name && tempMed.name.trim() && !tempMed.frequency) {
+                              const autoFreq = detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage);
+                              if (autoFreq) {
+                                setTempMed(prev => ({ ...prev, frequency: autoFreq }));
+                              }
+                            }
                           }}
                           onKeyDown={e => {
                             if (e.key === 'ArrowDown') {
@@ -4597,25 +4846,32 @@ export default function App() {
                               e.stopPropagation();
                               if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
                                 const selected = filteredMeds[medHighlightedIndex];
+                                const autoFreq = detectSmartDrugTiming(selected.name, selected.composition, rxInstructionLanguage);
                                 setTempMed({
                                   name: selected.name,
                                   composition: selected.composition || '',
                                   dosage: selected.dosage || '',
-                                  frequency: tempMed.frequency || ''
+                                  frequency: autoFreq || tempMed.frequency || ''
                                 });
                                 setActiveSearchIndex(null);
                                 setMedHighlightedIndex(0);
                                 setTimeout(() => {
                                   if (selected.dosage) {
                                     medFrequencyInputRef.current?.focus();
+                                    medFrequencyInputRef.current?.select();
                                   } else {
                                     medDosageInputRef.current?.focus();
                                   }
                                 }, 60);
                               } else if (tempMed.name.trim()) {
                                 setActiveSearchIndex(null);
-                                if (tempMed.dosage || tempMed.frequency) {
-                                  handleAddMedicineToRx();
+                                const autoFreq = !tempMed.frequency ? detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage) : '';
+                                if (autoFreq) {
+                                  setTempMed(prev => ({ ...prev, frequency: autoFreq }));
+                                }
+                                if (tempMed.dosage) {
+                                  medFrequencyInputRef.current?.focus();
+                                  medFrequencyInputRef.current?.select();
                                 } else {
                                   medDosageInputRef.current?.focus();
                                 }
@@ -4627,17 +4883,19 @@ export default function App() {
                               if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
                                 e.preventDefault();
                                 const selected = filteredMeds[medHighlightedIndex];
+                                const autoFreq = detectSmartDrugTiming(selected.name, selected.composition, rxInstructionLanguage);
                                 setTempMed({
                                   name: selected.name,
                                   composition: selected.composition || '',
                                   dosage: selected.dosage || '',
-                                  frequency: tempMed.frequency || ''
+                                  frequency: autoFreq || tempMed.frequency || ''
                                 });
                                 setActiveSearchIndex(null);
                                 setMedHighlightedIndex(0);
                                 setTimeout(() => {
                                   if (selected.dosage) {
                                     medFrequencyInputRef.current?.focus();
+                                    medFrequencyInputRef.current?.select();
                                   } else {
                                     medDosageInputRef.current?.focus();
                                   }
@@ -4682,17 +4940,19 @@ export default function App() {
                                     key={m.id || idx}
                                     id={`med-dropdown-item-${idx}`}
                                     onMouseDown={() => {
+                                      const autoFreq = detectSmartDrugTiming(m.name, m.composition, rxInstructionLanguage);
                                       setTempMed({
                                         name: m.name,
                                         composition: m.composition || '',
                                         dosage: m.dosage || '',
-                                        frequency: tempMed.frequency || ''
+                                        frequency: autoFreq || tempMed.frequency || ''
                                       });
                                       setActiveSearchIndex(null);
                                       setMedHighlightedIndex(0);
                                       setTimeout(() => {
                                         if (m.dosage) {
                                           medFrequencyInputRef.current?.focus();
+                                          medFrequencyInputRef.current?.select();
                                         } else {
                                           medDosageInputRef.current?.focus();
                                         }
@@ -4743,7 +5003,17 @@ export default function App() {
                           type="text" 
                           placeholder="Composition (Optional)"
                           value={tempMed.composition}
-                          onChange={e => setTempMed(prev => ({ ...prev, composition: e.target.value }))}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setTempMed(prev => {
+                              const updated = { ...prev, composition: val };
+                              if (!prev.frequency) {
+                                const auto = detectSmartDrugTiming(prev.name, val, rxInstructionLanguage);
+                                if (auto) updated.frequency = auto;
+                              }
+                              return updated;
+                            });
+                          }}
                           onKeyDown={e => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -4756,7 +5026,7 @@ export default function App() {
                       </div>
 
                       {/* Dosage & Frequency side by side */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '0.75rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Dosage</label>
                           <input 
@@ -4769,18 +5039,57 @@ export default function App() {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                if (!tempMed.frequency) {
+                                  const auto = detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage);
+                                  if (auto) {
+                                    setTempMed(prev => ({ ...prev, frequency: auto }));
+                                  }
+                                }
                                 medFrequencyInputRef.current?.focus();
+                                medFrequencyInputRef.current?.select();
                               }
                             }}
                             style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                           />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Frequency & Instructions</label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>
+                              Frequency & Instructions
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const auto = detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage);
+                                if (auto) {
+                                  setTempMed(prev => ({ ...prev, frequency: auto }));
+                                  medFrequencyInputRef.current?.focus();
+                                }
+                              }}
+                              title="Auto-detect timing in selected language"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#0f766e',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                padding: 0
+                              }}
+                            >
+                              🪄 Auto-Detect
+                            </button>
+                          </div>
                           <input 
                             ref={medFrequencyInputRef}
                             type="text" 
-                            placeholder="e.g. 1-0-1 (after meals)"
+                            placeholder={
+                              rxInstructionLanguage === 'hindi'
+                                ? 'उदा. 1-0-0 (सुबह खाली पेट)'
+                                : rxInstructionLanguage === 'english'
+                                ? 'e.g. 1-0-0 (Empty stomach in morning)'
+                                : 'e.g. 1-0-0 (सुबह खाली पेट / Empty stomach)'
+                            }
                             value={tempMed.frequency}
                             onChange={e => setTempMed(prev => ({ ...prev, frequency: e.target.value }))}
                             onKeyDown={e => {
@@ -4792,6 +5101,53 @@ export default function App() {
                             }}
                             style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
                           />
+                        </div>
+                      </div>
+
+                      {/* Quick Frequency & Timing Presets Chips */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                            Quick Timing Pills (Click or use ↵ to confirm):
+                          </span>
+                          <span style={{ fontSize: '0.68rem', color: '#0f766e', fontWeight: 600 }}>
+                            Active: {rxInstructionLanguage === 'bilingual' ? '🌐 Bilingual' : rxInstructionLanguage === 'hindi' ? '🇮🇳 Hindi' : '🇬🇧 English'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          {TIMING_QUICK_PRESETS.map(preset => {
+                            const presetVal = getPresetTimingValue(preset.id, rxInstructionLanguage);
+                            const isSelected = tempMed.frequency === presetVal;
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => {
+                                  setTempMed(prev => ({ ...prev, frequency: presetVal }));
+                                  medFrequencyInputRef.current?.focus();
+                                }}
+                                title={`Click to set: ${presetVal}`}
+                                style={{
+                                  border: isSelected ? '1.5px solid #0f766e' : '1px solid #cbd5e1',
+                                  backgroundColor: isSelected ? '#ccfbf1' : '#ffffff',
+                                  color: isSelected ? '#0f766e' : '#334155',
+                                  borderRadius: '12px',
+                                  padding: '0.2rem 0.5rem',
+                                  fontSize: '0.72rem',
+                                  fontWeight: isSelected ? 800 : 500,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  boxShadow: isSelected ? '0 1px 3px rgba(15,118,110,0.2)' : 'none',
+                                  transition: 'all 0.12s ease'
+                                }}
+                              >
+                                <span>{preset.icon}</span>
+                                <span>{preset.shortLabel}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -4907,7 +5263,19 @@ export default function App() {
                                     />
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Frequency & Instructions</label>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>Frequency & Instructions</label>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const auto = detectSmartDrugTiming(editingOfflineMed.name, editingOfflineMed.composition, rxInstructionLanguage);
+                                          if (auto) setEditingOfflineMed(prev => ({ ...prev, frequency: auto }));
+                                        }}
+                                        style={{ border: 'none', background: 'none', color: '#0f766e', fontSize: '0.68rem', cursor: 'pointer', fontWeight: 700, padding: 0 }}
+                                      >
+                                        🪄 Auto-Detect
+                                      </button>
+                                    </div>
                                     <input 
                                       type="text" 
                                       placeholder="e.g. 1-0-1 (after meals)"
@@ -4915,6 +5283,30 @@ export default function App() {
                                       onChange={e => setEditingOfflineMed(prev => ({ ...prev, frequency: e.target.value }))}
                                       style={{ width: '100%', padding: '0.4rem 0.55rem', fontSize: '0.82rem', borderRadius: '4px', border: '1px solid var(--neutral-border)', boxSizing: 'border-box' }}
                                     />
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.2rem' }}>
+                                      {TIMING_QUICK_PRESETS.map(preset => {
+                                        const presetVal = getPresetTimingValue(preset.id, rxInstructionLanguage);
+                                        const isSelected = editingOfflineMed.frequency === presetVal;
+                                        return (
+                                          <button
+                                            key={preset.id}
+                                            type="button"
+                                            onClick={() => setEditingOfflineMed(prev => ({ ...prev, frequency: presetVal }))}
+                                            style={{
+                                              border: isSelected ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                              backgroundColor: isSelected ? '#ccfbf1' : '#ffffff',
+                                              color: isSelected ? '#0f766e' : '#334155',
+                                              borderRadius: '10px',
+                                              padding: '0.1rem 0.4rem',
+                                              fontSize: '0.68rem',
+                                              cursor: 'pointer'
+                                            }}
+                                          >
+                                            {preset.icon} {preset.shortLabel}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
 
@@ -7496,15 +7888,15 @@ export default function App() {
                     <span style={{ fontWeight: 700, backgroundColor: '#ccfbf1', color: '#0f766e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↓ / ↑ Arrow Keys</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>3. Select highlighted drug (auto-fills dosage & generic)</span>
+                    <span>3. Select highlighted drug (auto-fills dosage, generic & smart frequency)</span>
                     <span style={{ fontWeight: 700, backgroundColor: '#ccfbf1', color: '#0f766e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>4. Advance through Dosage & Frequency fields</span>
-                    <span style={{ fontWeight: 700, backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter</span>
+                    <span>4. Auto-timing pre-filled in Hindi/English/Bilingual (Empty stomach, Bedtime, etc.)</span>
+                    <span style={{ fontWeight: 700, backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>Auto / Quick Pills</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>5. Add to Rx table & automatically reset cursor to Medicine Name</span>
+                    <span>5. Hit Enter to confirm (or type to edit) & immediately loop to next medicine</span>
                     <span style={{ fontWeight: 700, backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>↵ Enter on Frequency</span>
                   </div>
                 </div>
