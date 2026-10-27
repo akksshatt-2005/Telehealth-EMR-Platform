@@ -454,9 +454,6 @@ export default function App() {
   const chiefComplaintsInputRef = useRef(null);
   const quickLookupInputRef = useRef(null);
   const previewScrollRef = useRef(null);
-  const previewMedsSectionRef = useRef(null);
-  const [rightPanelTab, setRightPanelTab] = useState('preview'); // 'preview' or 'history'
-  const [previewScaleMode, setPreviewScaleMode] = useState(() => localStorage.getItem('rxPreviewScaleMode') || 'fit');
   const [previewContainerWidth, setPreviewContainerWidth] = useState(550);
   const [offlineForm, setOfflineForm] = useState({
     referenceId: '',
@@ -586,36 +583,14 @@ export default function App() {
       window.removeEventListener('resize', updateWidth);
       if (ro) ro.disconnect();
     };
-  }, [sidebarOpen, rightPanelTab]);
+  }, [sidebarOpen]);
 
-  const calculatedFitScale = useMemo(() => {
+  const activePreviewScale = useMemo(() => {
     const targetW = offlineLayout.pageWidth || 800;
     const availW = Math.max(260, previewContainerWidth - 32);
     const scale = availW / targetW;
     return Math.min(1, Math.max(0.42, Number(scale.toFixed(2))));
   }, [previewContainerWidth, offlineLayout.pageWidth]);
-
-  const activePreviewScale = previewScaleMode === 'fit' ? calculatedFitScale : previewScaleMode === '85%' ? 0.85 : 1;
-
-  // Helper to smoothly scroll live preview to Prescribed Medications
-  const scrollToPreviewMeds = () => {
-    if (rightPanelTab !== 'preview') {
-      setRightPanelTab('preview');
-    }
-    setTimeout(() => {
-      if (previewMedsSectionRef.current && previewScrollRef.current) {
-        const parentRect = previewScrollRef.current.getBoundingClientRect();
-        const medRect = previewMedsSectionRef.current.getBoundingClientRect();
-        const currentScroll = previewScrollRef.current.scrollTop;
-        previewScrollRef.current.scrollTo({
-          top: Math.max(0, currentScroll + (medRect.top - parentRect.top) - 30),
-          behavior: 'smooth'
-        });
-      } else if (previewMedsSectionRef.current) {
-        previewMedsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 50);
-  };
 
   // Medicine Inventory State
   const [medicinesList, setMedicinesList] = useState([]);
@@ -1845,9 +1820,6 @@ export default function App() {
       ...prev,
       medications: [...prev.medications, medToAdd]
     }));
-
-    // Auto-focus right preview panel on medications table
-    scrollToPreviewMeds();
 
     // Clear inputs and search dropdown
     setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
@@ -4125,7 +4097,7 @@ export default function App() {
           )}
 
             {/* Right Side: Form (Left Column) & Live preview (Right Column) */}
-            <div className="workspace-split" style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? '1.15fr 1fr' : '1.05fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+            <div className="workspace-split" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', alignItems: 'start' }}>
               
               {/* Form Input Panel */}
               <form 
@@ -4136,7 +4108,7 @@ export default function App() {
                   }
                 }}
                 className="glass-panel no-print" 
-                style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.1rem', boxShadow: 'var(--shadow-md)' }}
+                style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-md)' }}
               >
                 
                 {/* Header: Edit / View Past Record vs Create New Prescription */}
@@ -4844,96 +4816,6 @@ export default function App() {
                     {/* Stacked Inputs */}
                     <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       
-                      {/* Live Prescribed Medicines Tracker Bar (Direct visual feedback for 125-150% zoom) */}
-                      {offlineForm.medications.length > 0 && (
-                        <div style={{
-                          backgroundColor: '#f0fdfa',
-                          border: '1.5px solid #0f766e',
-                          borderRadius: '8px',
-                          padding: '0.6rem 0.85rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.45rem',
-                          boxShadow: '0 2px 6px rgba(15,118,110,0.08)'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <span style={{ fontSize: '1rem' }}>📋</span>
-                              <strong style={{ fontSize: '0.82rem', color: '#0f766e' }}>
-                                Prescribed in this Rx ({offlineForm.medications.length} {offlineForm.medications.length === 1 ? 'medicine' : 'medicines'}):
-                              </strong>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={scrollToPreviewMeds}
-                              style={{
-                                border: '1px solid #0f766e',
-                                backgroundColor: '#ffffff',
-                                color: '#0f766e',
-                                borderRadius: '4px',
-                                padding: '0.15rem 0.5rem',
-                                fontSize: '0.72rem',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem'
-                              }}
-                              title="Scroll the prescription sheet on right to this medicines table"
-                            >
-                              <span>👁️ View on Paper</span>
-                            </button>
-                          </div>
-
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                            {offlineForm.medications.map((m, idx) => (
-                              <div 
-                                key={idx}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid #ccfbf1',
-                                  borderRadius: '6px',
-                                  padding: '0.25rem 0.55rem',
-                                  fontSize: '0.78rem',
-                                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                                }}
-                              >
-                                <span style={{ fontWeight: 800, color: '#0f766e' }}>#{idx + 1} {m.name}</span>
-                                {m.dosage && <span style={{ color: '#475569', fontSize: '0.72rem' }}>• {m.dosage}</span>}
-                                {m.frequency && <span style={{ color: '#0369a1', fontSize: '0.72rem', fontWeight: 600 }}>• {m.frequency}</span>}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingOfflineMedIndex(idx);
-                                    setEditingOfflineMed({ ...m });
-                                  }}
-                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#0284c7', fontSize: '0.72rem', padding: '0 2px' }}
-                                  title="Edit details"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOfflineForm(prev => ({
-                                      ...prev,
-                                      medications: (prev.medications || []).filter((_, i) => i !== idx)
-                                    }));
-                                  }}
-                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.72rem', padding: '0 2px' }}
-                                  title="Remove"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Medicine Name */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4955,7 +4837,6 @@ export default function App() {
                           onFocus={() => {
                             setActiveSearchIndex(999);
                             setMedHighlightedIndex(0);
-                            scrollToPreviewMeds();
                           }}
                           onBlur={() => {
                             setTimeout(() => {
@@ -5675,230 +5556,50 @@ export default function App() {
                 style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
-                  gap: '0.65rem',
+                  gap: '1.5rem',
                   position: 'sticky',
                   top: '0.75rem',
                   maxHeight: 'calc(100vh - 1.5rem)',
-                  height: 'calc(100vh - 1.5rem)',
-                  alignSelf: 'start',
-                  zIndex: 10
+                  overflowY: 'auto'
                 }}
               >
                 
-                {/* Clean Top Action Bar & Tab Switcher */}
-                <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', backgroundColor: 'var(--white)', padding: '0.65rem 0.85rem', borderRadius: '12px', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)' }}>
-                  
-                  {/* Row 1: Segmented Tabs (Live Rx vs Past History) + Secondary Tools + Print CTA */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    
-                    {/* View Switcher Tabs */}
-                    <div style={{ display: 'flex', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0', gap: '3px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setRightPanelTab('preview')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.35rem 0.65rem',
-                          fontSize: '0.82rem',
-                          fontWeight: rightPanelTab === 'preview' ? 800 : 600,
-                          backgroundColor: rightPanelTab === 'preview' ? 'var(--white)' : 'transparent',
-                          color: rightPanelTab === 'preview' ? 'var(--primary)' : '#64748b',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          boxShadow: rightPanelTab === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <span>📄 Live Rx Paper</span>
-                        <span style={{ 
-                          fontSize: '0.72rem', 
-                          padding: '1px 6px', 
-                          borderRadius: '10px', 
-                          backgroundColor: rightPanelTab === 'preview' ? '#ccfbf1' : '#e2e8f0', 
-                          color: rightPanelTab === 'preview' ? '#0f766e' : '#475569', 
-                          fontWeight: 700 
-                        }}>
-                          {offlineForm.medications.length} {offlineForm.medications.length === 1 ? 'med' : 'meds'}
-                        </span>
-                      </button>
+              {/* Clean Top Action Bar */}
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--white)', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => setShowLayoutSettings(!showLayoutSettings)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600 }}
+                  >
+                    ⚙️ {showLayoutSettings ? 'Hide Layout Settings' : 'Layout Settings'}
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setRightPanelTab('history')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.35rem 0.65rem',
-                          fontSize: '0.82rem',
-                          fontWeight: rightPanelTab === 'history' ? 800 : 600,
-                          backgroundColor: rightPanelTab === 'history' ? 'var(--white)' : 'transparent',
-                          color: rightPanelTab === 'history' ? '#0284c7' : '#64748b',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          boxShadow: rightPanelTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <span>📁 Past Visits</span>
-                        <span style={{ 
-                          fontSize: '0.72rem', 
-                          padding: '1px 6px', 
-                          borderRadius: '10px', 
-                          backgroundColor: rightPanelTab === 'history' ? '#e0f2fe' : (getPatientHistoryPrescriptions().length > 0 ? '#dcfce7' : '#e2e8f0'), 
-                          color: rightPanelTab === 'history' ? '#0369a1' : (getPatientHistoryPrescriptions().length > 0 ? '#15803d' : '#475569'), 
-                          fontWeight: 700 
-                        }}>
-                          {getPatientHistoryPrescriptions().length}
-                        </span>
-                      </button>
-                    </div>
-
-                    {/* Secondary Tools & Print Button */}
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => setShowLayoutSettings(!showLayoutSettings)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.65rem', fontSize: '0.78rem', fontWeight: 600 }}
-                        title="Adjust Font Size, Margins, Spacing or Letterhead"
-                      >
-                        ⚙️ {showLayoutSettings ? 'Hide Settings' : 'Settings'}
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => {
-                          setShowAnalyticsModal(true);
-                          fetchOverviewAnalytics(analyticsTimeframe);
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.65rem', fontSize: '0.78rem', fontWeight: 600, background: '#f0fdf4', borderColor: '#86efac', color: '#166534' }}
-                        title="Open Clinical Research & Prescription Analytics"
-                      >
-                        🔬 Analytics
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-primary" 
-                        onClick={handlePrintPrescription}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.85rem', fontSize: '0.82rem', fontWeight: 700 }}
-                        title="Print Prescription (Ctrl+P / Alt+P)"
-                      >
-                        <span>🖨️ Print Rx</span>
-                        <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.08rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+P</span>
-                      </button>
-                    </div>
-
-                  </div>
-
-                  {/* Row 2: Sub-toolbar for Live Rx Paper View (Jump & Resolution Auto-Fit) */}
-                  {rightPanelTab === 'preview' && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', paddingTop: '0.35rem', borderTop: '1px solid #f1f5f9', fontSize: '0.78rem', flexWrap: 'wrap' }}>
-                      
-                      {/* Left: Quick Jump Navigation */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem' }}>JUMP:</span>
-                        <button
-                          type="button"
-                          onClick={scrollToPreviewMeds}
-                          style={{
-                            backgroundColor: '#ecfdf5',
-                            border: '1px solid #a7f3d0',
-                            color: '#047857',
-                            padding: '0.2rem 0.55rem',
-                            borderRadius: '5px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem'
-                          }}
-                          title="Scroll preview paper directly to Prescribed Medications"
-                        >
-                          <span>💊 Focus Meds</span>
-                          {offlineForm.medications.length > 0 && (
-                            <span style={{ backgroundColor: '#059669', color: '#ffffff', borderRadius: '8px', padding: '0 4px', fontSize: '0.68rem' }}>
-                              {offlineForm.medications.length}
-                            </span>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => previewScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                          style={{
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #cbd5e1',
-                            color: '#475569',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '5px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                          title="Scroll to top of prescription"
-                        >
-                          📄 Top
-                        </button>
-                      </div>
-
-                      {/* Right: Resolution Auto-Fit / Zoom Control */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>ZOOM:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewScaleMode('fit');
-                            localStorage.setItem('rxPreviewScaleMode', 'fit');
-                          }}
-                          style={{
-                            backgroundColor: previewScaleMode === 'fit' ? '#0f766e' : '#f8fafc',
-                            color: previewScaleMode === 'fit' ? '#ffffff' : '#334155',
-                            border: previewScaleMode === 'fit' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '5px',
-                            fontSize: '0.74rem',
-                            fontWeight: previewScaleMode === 'fit' ? 700 : 500,
-                            cursor: 'pointer'
-                          }}
-                          title="Automatically fit prescription width to your screen (recommended for 125%-150% zoom)"
-                        >
-                          🔍 Auto-Fit ({Math.round(calculatedFitScale * 100)}%)
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewScaleMode('100%');
-                            localStorage.setItem('rxPreviewScaleMode', '100%');
-                          }}
-                          style={{
-                            backgroundColor: previewScaleMode === '100%' ? '#0f766e' : '#f8fafc',
-                            color: previewScaleMode === '100%' ? '#ffffff' : '#334155',
-                            border: previewScaleMode === '100%' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '5px',
-                            fontSize: '0.74rem',
-                            fontWeight: previewScaleMode === '100%' ? 700 : 500,
-                            cursor: 'pointer'
-                          }}
-                          title="Original 100% printable paper scale"
-                        >
-                          100%
-                        </button>
-                      </div>
-
-                    </div>
-                  )}
-
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setShowAnalyticsModal(true);
+                      fetchOverviewAnalytics(analyticsTimeframe);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, background: '#f0fdf4', borderColor: '#86efac', color: '#166534' }}
+                    title="Open Clinical Research & Prescription Analytics"
+                  >
+                    🔬 Research & Analytics
+                  </button>
                 </div>
+                
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={handlePrintPrescription}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
+                >
+                  <span>🖨️ Print Prescription</span>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+P / Alt+P</span>
+                </button>
+              </div>
 
               {/* Collapsible Sliders Grid Controls */}
               {showLayoutSettings && (
@@ -6275,35 +5976,12 @@ export default function App() {
                     }
                   }}
                   className="print-preview-container-wrapper" 
-                  style={{ 
-                    display: rightPanelTab === 'preview' ? 'flex' : 'none', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    backgroundColor: '#e2e8f0', 
-                    padding: '0.85rem 0.5rem', 
-                    borderRadius: '12px', 
-                    overflowX: 'auto', 
-                    overflowY: 'auto', 
-                    flex: 1,
-                    minHeight: 0,
-                    border: '1px solid var(--neutral-border)', 
-                    boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.06)', 
-                    outline: 'none',
-                    position: 'relative'
-                  }}
-                  title="Live Prescription Preview - scroll or jump to Prescribed Meds"
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', maxHeight: '85vh', overflowY: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                  title="Click to focus preview sheet - navigate with ↑ / ↓ or PageUp / PageDown"
                 >
-                  <div className="no-print" style={{ fontSize: '0.72rem', color: '#475569', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '780px', padding: '0 0.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <span>📄</span>
-                      <span style={{ fontWeight: 700 }}>Live Prescription Preview</span>
-                      {activePreviewScale < 1 && (
-                        <span style={{ fontSize: '0.68rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                          Auto-fitted ({Math.round(activePreviewScale * 100)}%) for 125-150% zoom
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Scroll or navigate with ↑ / ↓</span>
+                  <div className="no-print" style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>📄</span>
+                    <span>Live Prescription Preview • Click to focus & scroll with ↑ / ↓ or PageDown</span>
                   </div>
                   
                   {/* Resolution-Scaled Wrapper */}
@@ -6331,8 +6009,8 @@ export default function App() {
                         paddingRight: `${offlineLayout.marginSize}px`,
                         fontSize: `${offlineLayout.fontSize}px`,
                         backgroundColor: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -6492,7 +6170,7 @@ export default function App() {
                         </div>
 
                         {/* Right Column: Prescribed Medications (Rx) */}
-                        <div ref={previewMedsSectionRef} id="preview-meds-section">
+                        <div>
                           {/* Rx symbol */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                             <span style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#0d9488', fontFamily: 'serif' }}>℞</span>
@@ -6509,34 +6187,26 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody>
-                              {offlineForm.medications.length === 0 ? (
-                                <tr style={{ backgroundColor: '#f8fafc' }}>
-                                  <td colSpan="3" style={{ padding: '1.5rem 10px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85em' }}>
-                                    No medicines prescribed yet. Fill the "Add Medicine to Rx" section on the left to add medications.
+                              {offlineForm.medications.map((med, idx) => (
+                                <tr 
+                                  key={idx} 
+                                  style={{ 
+                                    backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#fff',
+                                    borderBottom: '1px solid #f1f5f9'
+                                  }}
+                                >
+                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000' }}>
+                                    <div style={{ fontWeight: 800 }}>{med.name || '__________________'}</div>
+                                    {med.composition && med.composition.trim() && (
+                                      <div style={{ fontSize: '0.85em', color: '#b91c1c', fontWeight: 700, fontStyle: 'italic', marginTop: '0.15rem' }}>
+                                        ({med.composition.trim()})
+                                      </div>
+                                    )}
                                   </td>
+                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.dosage || ''}</td>
+                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.frequency || '_______________'}</td>
                                 </tr>
-                              ) : (
-                                offlineForm.medications.map((med, idx) => (
-                                  <tr 
-                                    key={idx} 
-                                    style={{ 
-                                      backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#fff',
-                                      borderBottom: '1px solid #f1f5f9'
-                                    }}
-                                  >
-                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000' }}>
-                                      <div style={{ fontWeight: 800 }}>{med.name || '__________________'}</div>
-                                      {med.composition && med.composition.trim() && (
-                                        <div style={{ fontSize: '0.85em', color: '#b91c1c', fontWeight: 700, fontStyle: 'italic', marginTop: '0.15rem' }}>
-                                          ({med.composition.trim()})
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.dosage || ''}</td>
-                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.frequency || '_______________'}</td>
-                                  </tr>
-                                ))
-                              )}
+                              ))}
                             </tbody>
                           </table>
                         </div>
@@ -6571,66 +6241,10 @@ export default function App() {
 
                   </div>
                 </div>
-                  
-                  {/* Past Visits Notice Banner inside preview view */}
-                  {getPatientHistoryPrescriptions().length > 0 && (
-                    <div className="no-print" style={{ 
-                      marginTop: '0.85rem', 
-                      backgroundColor: '#ffffff', 
-                      border: '1.5px solid #86efac', 
-                      borderRadius: '8px', 
-                      padding: '0.55rem 0.85rem', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      gap: '0.75rem',
-                      fontSize: '0.8rem',
-                      color: '#166534',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                      maxWidth: '650px',
-                      width: '100%'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                        <span style={{ fontSize: '1.1rem' }}>📁</span>
-                        <span><strong>{getPatientHistoryPrescriptions().length} past consultation {getPatientHistoryPrescriptions().length === 1 ? 'record' : 'records'}</strong> available for this patient.</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setRightPanelTab('history')}
-                        style={{
-                          backgroundColor: '#dcfce7',
-                          border: '1px solid #4ade80',
-                          color: '#15803d',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '6px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          fontSize: '0.76rem',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        Open Past Visits Tab →
-                      </button>
-                    </div>
-                  )}
+              </div>
 
-                </div>
-
-                {/* Previous Prescriptions History Accordion Tab Pane */}
-                {rightPanelTab === 'history' && (
-                  <div className="no-print rx-history-tab-pane" style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '1rem', 
-                    backgroundColor: '#ffffff', 
-                    padding: '1rem 1.25rem', 
-                    borderRadius: '12px', 
-                    border: '1px solid var(--neutral-border)', 
-                    boxShadow: 'var(--shadow-sm)',
-                    flex: 1,
-                    minHeight: 0,
-                    overflowY: 'auto'
-                  }}>
+                {/* Previous Prescriptions History Accordion (Rendered directly beneath Printable Prescription Sheet) */}
+                <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
                   
                   {/* Section Title & Summary */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.25rem' }}>
@@ -6928,7 +6542,6 @@ export default function App() {
                   )}
 
                 </div>
-              )}
 
               </div>
 
