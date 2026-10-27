@@ -1179,4 +1179,19 @@ input:focus, textarea:focus, select:focus {
   border-color: #0f766e;
 }
 
+/* Offline Prescription Workspace Grid */
+.workspace-split {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) minmax(480px, 1.25fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .workspace-split {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
 

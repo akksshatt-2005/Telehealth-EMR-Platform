@@ -587,9 +587,9 @@ export default function App() {
 
   const activePreviewScale = useMemo(() => {
     const targetW = offlineLayout.pageWidth || 800;
-    const availW = Math.max(260, previewContainerWidth - 32);
+    const availW = Math.max(300, previewContainerWidth - 44);
     const scale = availW / targetW;
-    return Math.min(1, Math.max(0.42, Number(scale.toFixed(2))));
+    return Math.min(1, Math.max(0.48, Number(scale.toFixed(2))));
   }, [previewContainerWidth, offlineLayout.pageWidth]);
 
   // Medicine Inventory State
@@ -4097,7 +4097,7 @@ export default function App() {
           )}
 
             {/* Right Side: Form (Left Column) & Live preview (Right Column) */}
-            <div className="workspace-split" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', alignItems: 'start' }}>
+            <div className="workspace-split">
               
               {/* Form Input Panel */}
               <form 
@@ -5565,13 +5565,27 @@ export default function App() {
               >
                 
               {/* Clean Top Action Bar */}
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--white)', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)' }}>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div 
+                className="no-print" 
+                style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  backgroundColor: 'var(--white)', 
+                  padding: '0.75rem 1rem', 
+                  borderRadius: '12px', 
+                  border: '1px solid var(--neutral-border)', 
+                  boxShadow: 'var(--shadow-sm)',
+                  flexWrap: 'wrap',
+                  gap: '0.65rem'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
                     onClick={() => setShowLayoutSettings(!showLayoutSettings)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'nowrap' }}
                   >
                     ⚙️ {showLayoutSettings ? 'Hide Layout Settings' : 'Layout Settings'}
                   </button>
@@ -5583,7 +5597,7 @@ export default function App() {
                       setShowAnalyticsModal(true);
                       fetchOverviewAnalytics(analyticsTimeframe);
                     }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, background: '#f0fdf4', borderColor: '#86efac', color: '#166534' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', fontSize: '0.82rem', fontWeight: 600, background: '#f0fdf4', borderColor: '#86efac', color: '#166534', whiteSpace: 'nowrap' }}
                     title="Open Clinical Research & Prescription Analytics"
                   >
                     🔬 Research & Analytics
@@ -5594,10 +5608,10 @@ export default function App() {
                   type="button" 
                   className="btn btn-primary" 
                   onClick={handlePrintPrescription}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.5rem 1.15rem', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap' }}
                 >
                   <span>🖨️ Print Prescription</span>
-                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+P / Alt+P</span>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(255,255,255,0.25)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>Ctrl+P</span>
                 </button>
               </div>
 
@@ -5976,12 +5990,17 @@ export default function App() {
                     }
                   }}
                   className="print-preview-container-wrapper" 
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', overflowX: 'auto', maxHeight: '85vh', overflowY: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#ffffff', padding: '1.25rem', borderRadius: '12px', overflowX: 'hidden', maxHeight: '85vh', overflowY: 'auto', border: '1px solid var(--neutral-border)', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
                   title="Click to focus preview sheet - navigate with ↑ / ↓ or PageUp / PageDown"
                 >
-                  <div className="no-print" style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span>📄</span>
-                    <span>Live Prescription Preview • Click to focus & scroll with ↑ / ↓ or PageDown</span>
+                  <div className="no-print" style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span>📄</span>
+                      <span>Live Prescription Preview • {Math.round(activePreviewScale * 100)}% Auto-Fit</span>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                      Scroll: ↑ / ↓ or PageDown
+                    </div>
                   </div>
                   
                   {/* Resolution-Scaled Wrapper */}
@@ -5992,7 +6011,10 @@ export default function App() {
                       height: activePreviewScale < 1 ? `${Math.round(offlineLayout.pageHeight * activePreviewScale)}px` : `${offlineLayout.pageHeight}px`,
                       margin: '0 auto',
                       position: 'relative',
-                      flexShrink: 0
+                      flexShrink: 0,
+                      overflow: 'hidden',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
                     }}
                   >
                     {/* Printable Page Sheet */}
@@ -6003,14 +6025,13 @@ export default function App() {
                         height: `${offlineLayout.pageHeight}px`,
                         transform: activePreviewScale < 1 ? `scale(${activePreviewScale})` : 'none',
                         transformOrigin: 'top left',
-                        paddingTop: offlineLayout.useLetterhead ? `${offlineLayout.letterheadTopMargin || 340}px` : `${offlineLayout.marginSize}px`,
-                        paddingBottom: offlineLayout.useLetterhead ? `${offlineLayout.letterheadBottomMargin || 220}px` : `${offlineLayout.marginSize}px`,
+                        paddingTop: `${offlineLayout.marginSize}px`,
+                        paddingBottom: `${offlineLayout.marginSize}px`,
                         paddingLeft: `${offlineLayout.marginSize}px`,
                         paddingRight: `${offlineLayout.marginSize}px`,
                         fontSize: `${offlineLayout.fontSize}px`,
                         backgroundColor: '#ffffff',
                         border: '1px solid #e2e8f0',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -6020,8 +6041,65 @@ export default function App() {
                       }}
                     >
                     <div>
-                      {/* Premium Letterhead Header */}
-                      {!offlineLayout.useLetterhead && (
+                      {/* Premium Letterhead Header or Pre-printed Paper Spacer */}
+                      {offlineLayout.useLetterhead ? (
+                        <div 
+                          style={{ 
+                            height: `${Math.max(100, (offlineLayout.letterheadTopMargin || 340) - offlineLayout.marginSize)}px`,
+                            marginBottom: '1rem',
+                            position: 'relative',
+                            display: 'flex',
+                            flexDirection: 'column'
+                          }}
+                        >
+                          {/* On Screen Live Preview Indicator */}
+                          <div 
+                            className="no-print" 
+                            style={{
+                              height: '100%',
+                              backgroundColor: '#f8fafc',
+                              border: '2px dashed #94a3b8',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '1rem',
+                              textAlign: 'center',
+                              boxSizing: 'border-box'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1e293b', fontWeight: 800, fontSize: '0.88em' }}>
+                              <span>📋</span>
+                              <span>Pre-Printed Letterhead Paper Mode Active ({offlineLayout.letterheadTopMargin || 340}px)</span>
+                            </div>
+                            <div style={{ fontSize: '0.74em', color: '#64748b', marginTop: '0.25rem', maxWidth: '420px', lineHeight: 1.35 }}>
+                              This area is reserved for physical stationery. When printed, your clinic stationery fills this space.
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                localStorage.setItem('useLetterheadOffline', 'false');
+                                setOfflineLayout(prev => ({ ...prev, useLetterhead: false }));
+                              }}
+                              style={{
+                                marginTop: '0.5rem',
+                                padding: '0.3rem 0.8rem',
+                                fontSize: '0.74em',
+                                fontWeight: 700,
+                                backgroundColor: '#0f766e',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              ↺ Switch to Standard Digital Header (Mental Wellness Clinic)
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', borderBottom: '2px solid #0f766e', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                           <div>
                             <div style={{ fontWeight: 800, fontSize: '1.45em', color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.03em', fontFamily: offlineLayout.fontFamily || 'Plus Jakarta Sans' }}>MENTAL WELLNESS CLINIC</div>
@@ -6232,10 +6310,12 @@ export default function App() {
                           />
                         </div>
                       )}
-                      {!offlineLayout.useLetterhead && (
+                      {!offlineLayout.useLetterhead ? (
                         <div style={{ textAlign: 'center', fontSize: '0.65em', color: '#94a3b8', width: '100%', lineHeight: 1.3 }}>
                           This is a digitally generated secure e-Prescription. Valid without physical signature.
                         </div>
+                      ) : (
+                        <div style={{ height: `${Math.max(0, (offlineLayout.letterheadBottomMargin || 220) - offlineLayout.marginSize)}px` }}></div>
                       )}
                     </div>
 
