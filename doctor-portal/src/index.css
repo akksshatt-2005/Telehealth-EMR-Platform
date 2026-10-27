@@ -769,7 +769,8 @@ input:focus, textarea:focus, select:focus {
   .offline-rx-workspace,
   .workspace-split,
   .print-preview-column,
-  .print-preview-container-wrapper {
+  .print-preview-container-wrapper,
+  .preview-scale-wrapper {
     display: block !important;
     float: none !important;
     position: static !important;
@@ -784,6 +785,7 @@ input:focus, textarea:focus, select:focus {
     background: transparent !important;
     box-shadow: none !important;
     overflow: visible !important;
+    transform: none !important;
   }
 
   /* Force the prescription card itself to be exactly 1 portrait page */
