@@ -300,16 +300,23 @@ export const SMART_TIMING_RULES = [
 ];
 
 export const detectSmartDrugTiming = (name = '', composition = '', lang = 'bilingual') => {
-  const combined = `${name || ''} ${composition || ''}`.trim().toLowerCase();
-  if (!combined) return '';
-  for (const rule of SMART_TIMING_RULES) {
-    if (rule.regex.test(combined)) {
-      if (lang === 'hindi') return rule.hindi;
-      if (lang === 'english') return rule.english;
-      return rule.bilingual;
+  try {
+    const safeName = typeof name === 'string' ? name : '';
+    const safeComp = typeof composition === 'string' ? composition : '';
+    const combined = `${safeName} ${safeComp}`.trim().toLowerCase();
+    if (!combined) return '';
+    for (const rule of (SMART_TIMING_RULES || [])) {
+      if (rule && rule.regex && rule.regex.test(combined)) {
+        if (lang === 'hindi') return rule.hindi || rule.bilingual || '';
+        if (lang === 'english') return rule.english || rule.bilingual || '';
+        return rule.bilingual || '';
+      }
     }
+    return '';
+  } catch (err) {
+    console.error('Error in detectSmartDrugTiming:', err);
+    return '';
   }
-  return '';
 };
 
 export const TIMING_QUICK_PRESETS = [
@@ -364,12 +371,53 @@ export const TIMING_QUICK_PRESETS = [
 ];
 
 export const getPresetTimingValue = (presetId, lang = 'bilingual') => {
-  const p = TIMING_QUICK_PRESETS.find(x => x.id === presetId);
+  const p = (TIMING_QUICK_PRESETS || []).find(x => x.id === presetId);
   if (!p) return '';
   if (lang === 'hindi') return p.hindi;
   if (lang === 'english') return p.english;
   return p.bilingual;
 };
+
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('App ErrorBoundary caught error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2.5rem', maxWidth: '640px', margin: '4rem auto', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.12)', border: '1px solid #fecaca', textAlign: 'center', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <h2 style={{ color: '#b91c1c', margin: '0 0 0.5rem 0', fontSize: '1.35rem', fontWeight: 800 }}>A display issue occurred</h2>
+          <p style={{ color: '#475569', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+            {this.state.error?.message || 'An unexpected rendering error occurred while loading this view.'}
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              style={{ padding: '0.65rem 1.4rem', backgroundColor: '#0f766e', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+            >
+              ↻ Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: '0.65rem 1.4rem', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+            >
+              🔄 Reload Doctor Portal
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [rxInstructionLanguage, setRxInstructionLanguage] = useState(() => {
@@ -597,13 +645,21 @@ export default function App() {
   
   // Memoized filtered medicines for rapid autocomplete keyboard search
   const filteredMeds = useMemo(() => {
-    if (!tempMed.name || !tempMed.name.trim()) return [];
-    const q = tempMed.name.trim().toLowerCase();
-    return (medicinesList || []).filter(m => 
-      m.name.toLowerCase().includes(q) ||
-      (m.composition && m.composition.toLowerCase().includes(q))
-    ).slice(0, 25);
-  }, [medicinesList, tempMed.name]);
+    try {
+      if (!tempMed?.name || typeof tempMed.name !== 'string' || !tempMed.name.trim()) return [];
+      const q = tempMed.name.trim().toLowerCase();
+      if (!q) return [];
+      return (medicinesList || []).filter(m => {
+        if (!m || typeof m !== 'object') return false;
+        const mName = typeof m.name === 'string' ? m.name.toLowerCase() : '';
+        const mComp = typeof m.composition === 'string' ? m.composition.toLowerCase() : '';
+        return (mName && mName.includes(q)) || (mComp && mComp.includes(q));
+      }).slice(0, 25);
+    } catch (err) {
+      console.error('Error calculating filteredMeds:', err);
+      return [];
+    }
+  }, [medicinesList, tempMed?.name]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('prescriptions'); // 'prescriptions' or 'inventory'
   const [newMedForm, setNewMedForm] = useState({ name: '', composition: '', dosage: '' });
@@ -1166,8 +1222,9 @@ export default function App() {
         }
       });
       const data = await response.json();
-      if (data.success) {
-        setMedicinesList(data.medicines);
+      if (data.success && Array.isArray(data.medicines)) {
+        const cleanList = data.medicines.filter(m => m && typeof m === 'object' && typeof m.name === 'string' && m.name.trim() !== '');
+        setMedicinesList(cleanList);
       } else {
         console.error('Failed to fetch medicines:', data.message);
       }
@@ -1797,18 +1854,20 @@ export default function App() {
   };
 
   const handleOfflineMedicationChange = (index, field, value) => {
-    const updatedMeds = [...offlineForm.medications];
-    updatedMeds[index][field] = value;
-    setOfflineForm(prev => ({
-      ...prev,
-      medications: updatedMeds
-    }));
+    const updatedMeds = [...(offlineForm.medications || [])];
+    if (updatedMeds[index]) {
+      updatedMeds[index] = { ...updatedMeds[index], [field]: value };
+      setOfflineForm(prev => ({
+        ...prev,
+        medications: updatedMeds
+      }));
+    }
   };
 
   const handleLanguageChange = (newLang) => {
     setRxInstructionLanguage(newLang);
     localStorage.setItem('rxInstructionLanguage', newLang);
-    if (tempMed.name && tempMed.name.trim()) {
+    if (tempMed?.name && typeof tempMed.name === 'string' && tempMed.name.trim()) {
       const auto = detectSmartDrugTiming(tempMed.name, tempMed.composition, newLang);
       if (auto) {
         setTempMed(prev => ({ ...prev, frequency: auto }));
@@ -1818,22 +1877,22 @@ export default function App() {
 
   // Add medicine to current offline prescription AND auto-save/sync to medicine database
   const handleAddMedicineToRx = async () => {
-    if (!tempMed.name || !tempMed.name.trim()) {
+    if (!tempMed || !tempMed.name || typeof tempMed.name !== 'string' || !tempMed.name.trim()) {
       alert('Please fill in the Medicine Name before adding.');
       return;
     }
 
     const medToAdd = {
       name: tempMed.name.trim(),
-      composition: tempMed.composition ? tempMed.composition.trim() : '',
-      dosage: tempMed.dosage ? tempMed.dosage.trim() : '',
-      frequency: tempMed.frequency ? tempMed.frequency.trim() : ''
+      composition: tempMed.composition && typeof tempMed.composition === 'string' ? tempMed.composition.trim() : '',
+      dosage: tempMed.dosage && typeof tempMed.dosage === 'string' ? tempMed.dosage.trim() : '',
+      frequency: tempMed.frequency && typeof tempMed.frequency === 'string' ? tempMed.frequency.trim() : ''
     };
 
     // Immediately add to offline prescription for responsive UI
     setOfflineForm(prev => ({
       ...prev,
-      medications: [...prev.medications, medToAdd]
+      medications: [...(prev?.medications || []), medToAdd]
     }));
 
     // Clear inputs and search dropdown
@@ -1862,14 +1921,23 @@ export default function App() {
         });
 
         const data = await response.json();
-        if (data.success && data.medicine) {
-          setMedicinesList(prev => {
-            const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
-            if (exists) {
-              return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
-            }
-            return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
-          });
+        if (data && data.success && data.medicine) {
+          const newMed = data.medicine;
+          const newMedName = typeof newMed?.name === 'string' ? newMed.name.toLowerCase() : '';
+          if (newMedName) {
+            setMedicinesList(prev => {
+              const list = Array.isArray(prev) ? prev : [];
+              const exists = list.some(m => m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName);
+              if (exists) {
+                return list.map(m => (m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName) ? newMed : m);
+              }
+              return [...list, newMed].sort((a, b) => {
+                const aName = a && typeof a.name === 'string' ? a.name : '';
+                const bName = b && typeof b.name === 'string' ? b.name : '';
+                return aName.localeCompare(bName);
+              });
+            });
+          }
         }
       } catch (err) {
         console.error('Error auto-saving medicine to database:', err);
@@ -1885,7 +1953,8 @@ export default function App() {
 
   // Start editing an added medicine
   const startEditOfflineMed = (index) => {
-    const target = offlineForm.medications[index];
+    const list = offlineForm?.medications || [];
+    const target = list[index];
     if (!target) return;
     setEditingOfflineMedIndex(index);
     setEditingOfflineMed({
@@ -1898,19 +1967,19 @@ export default function App() {
 
   // Save changes to an edited medicine
   const saveEditOfflineMed = async (index) => {
-    if (!editingOfflineMed.name.trim()) {
+    if (!editingOfflineMed?.name || typeof editingOfflineMed.name !== 'string' || !editingOfflineMed.name.trim()) {
       alert('Please provide a valid Medicine Name.');
       return;
     }
     const updatedMed = {
       name: editingOfflineMed.name.trim(),
-      composition: editingOfflineMed.composition ? editingOfflineMed.composition.trim() : '',
-      dosage: editingOfflineMed.dosage ? editingOfflineMed.dosage.trim() : '',
-      frequency: editingOfflineMed.frequency ? editingOfflineMed.frequency.trim() : ''
+      composition: editingOfflineMed.composition && typeof editingOfflineMed.composition === 'string' ? editingOfflineMed.composition.trim() : '',
+      dosage: editingOfflineMed.dosage && typeof editingOfflineMed.dosage === 'string' ? editingOfflineMed.dosage.trim() : '',
+      frequency: editingOfflineMed.frequency && typeof editingOfflineMed.frequency === 'string' ? editingOfflineMed.frequency.trim() : ''
     };
 
     setOfflineForm(prev => {
-      const updated = [...(prev.medications || [])];
+      const updated = [...(prev?.medications || [])];
       updated[index] = updatedMed;
       return { ...prev, medications: updated };
     });
@@ -1933,14 +2002,23 @@ export default function App() {
           })
         });
         const data = await response.json();
-        if (data.success && data.medicine) {
-          setMedicinesList(prev => {
-            const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
-            if (exists) {
-              return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
-            }
-            return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
-          });
+        if (data && data.success && data.medicine) {
+          const newMed = data.medicine;
+          const newMedName = typeof newMed?.name === 'string' ? newMed.name.toLowerCase() : '';
+          if (newMedName) {
+            setMedicinesList(prev => {
+              const list = Array.isArray(prev) ? prev : [];
+              const exists = list.some(m => m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName);
+              if (exists) {
+                return list.map(m => (m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName) ? newMed : m);
+              }
+              return [...list, newMed].sort((a, b) => {
+                const aName = a && typeof a.name === 'string' ? a.name : '';
+                const bName = b && typeof b.name === 'string' ? b.name : '';
+                return aName.localeCompare(bName);
+              });
+            });
+          }
         }
       } catch (err) {
         console.error('Error auto-saving edited medicine to DB:', err);
@@ -2586,25 +2664,27 @@ export default function App() {
   const addMedicationRow = () => {
     setPrescriptionForm(prev => ({
       ...prev,
-      medications: [...prev.medications, { name: '', composition: '', dosage: '', frequency: '' }]
+      medications: [...(prev?.medications || []), { name: '', composition: '', dosage: '', frequency: '' }]
     }));
   };
 
   const removeMedicationRow = (index) => {
-    if (prescriptionForm.medications.length === 1) return;
+    if ((prescriptionForm?.medications || []).length <= 1) return;
     setPrescriptionForm(prev => ({
       ...prev,
-      medications: prev.medications.filter((_, i) => i !== index)
+      medications: (prev?.medications || []).filter((_, i) => i !== index)
     }));
   };
 
   const handleMedicationChange = (index, field, value) => {
-    const updatedMeds = [...prescriptionForm.medications];
-    updatedMeds[index][field] = value;
-    setPrescriptionForm(prev => ({
-      ...prev,
-      medications: updatedMeds
-    }));
+    const updatedMeds = [...(prescriptionForm?.medications || [])];
+    if (updatedMeds[index]) {
+      updatedMeds[index] = { ...updatedMeds[index], [field]: value };
+      setPrescriptionForm(prev => ({
+        ...prev,
+        medications: updatedMeds
+      }));
+    }
   };
 
   // Submit Prescription Form
@@ -4785,7 +4865,7 @@ export default function App() {
                           type="button"
                           className="btn btn-secondary"
                           onClick={async () => {
-                            if (!tempMed.name.trim()) {
+                            if (!tempMed?.name || typeof tempMed.name !== 'string' || !tempMed.name.trim()) {
                               alert('Please fill out the Medicine Name to save to database.');
                               return;
                             }
@@ -4798,22 +4878,31 @@ export default function App() {
                                 },
                                 body: JSON.stringify({
                                   name: tempMed.name.trim(),
-                                  composition: tempMed.composition ? tempMed.composition.trim() : null,
-                                  dosage: tempMed.dosage ? tempMed.dosage.trim() : null
+                                  composition: tempMed.composition && typeof tempMed.composition === 'string' ? tempMed.composition.trim() : null,
+                                  dosage: tempMed.dosage && typeof tempMed.dosage === 'string' ? tempMed.dosage.trim() : null
                                 })
                               });
                               const data = await response.json();
-                              if (data.success) {
-                                setMedicinesList(prev => {
-                                  const exists = prev.some(m => m.name.toLowerCase() === data.medicine.name.toLowerCase());
-                                  if (exists) {
-                                    return prev.map(m => m.name.toLowerCase() === data.medicine.name.toLowerCase() ? data.medicine : m);
-                                  }
-                                  return [...prev, data.medicine].sort((a, b) => a.name.localeCompare(b.name));
-                                });
+                              if (data && data.success && data.medicine) {
+                                const newMed = data.medicine;
+                                const newMedName = typeof newMed?.name === 'string' ? newMed.name.toLowerCase() : '';
+                                if (newMedName) {
+                                  setMedicinesList(prev => {
+                                    const list = Array.isArray(prev) ? prev : [];
+                                    const exists = list.some(m => m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName);
+                                    if (exists) {
+                                      return list.map(m => (m && typeof m.name === 'string' && m.name.toLowerCase() === newMedName) ? newMed : m);
+                                    }
+                                    return [...list, newMed].sort((a, b) => {
+                                      const aName = a && typeof a.name === 'string' ? a.name : '';
+                                      const bName = b && typeof b.name === 'string' ? b.name : '';
+                                      return aName.localeCompare(bName);
+                                    });
+                                  });
+                                }
                                 alert(`"${tempMed.name}" saved to Medicine Database!`);
                               } else {
-                                alert(data.message || 'Failed to save to database.');
+                                alert((data && data.message) || 'Failed to save to database.');
                               }
                             } catch (err) {
                               alert('Error saving to database.');
@@ -4843,9 +4932,10 @@ export default function App() {
                           ref={medNameInputRef}
                           type="text" 
                           placeholder="e.g. Tab. Pantop 40mg, Dolo 650, Zapiz 0.25"
-                          value={tempMed.name}
+                          value={tempMed?.name || ''}
                           onChange={e => {
-                            setTempMed(prev => ({ ...prev, name: e.target.value }));
+                            const val = e.target.value;
+                            setTempMed(prev => ({ ...prev, name: val }));
                             setActiveSearchIndex(999);
                             setMedHighlightedIndex(0);
                           }}
@@ -4857,7 +4947,7 @@ export default function App() {
                             setTimeout(() => {
                               setActiveSearchIndex(null);
                             }, 250);
-                            if (tempMed.name && tempMed.name.trim() && !tempMed.frequency) {
+                            if (tempMed?.name && typeof tempMed.name === 'string' && tempMed.name.trim() && !tempMed.frequency) {
                               const autoFreq = detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage);
                               if (autoFreq) {
                                 setTempMed(prev => ({ ...prev, frequency: autoFreq }));
@@ -4866,7 +4956,7 @@ export default function App() {
                           }}
                           onKeyDown={e => {
                             if (e.key === 'ArrowDown') {
-                              if (activeSearchIndex === 999 && filteredMeds.length > 0) {
+                              if (activeSearchIndex === 999 && (filteredMeds || []).length > 0) {
                                 e.preventDefault();
                                 setMedHighlightedIndex(prev => {
                                   const next = (prev + 1) % filteredMeds.length;
@@ -4876,7 +4966,7 @@ export default function App() {
                                 });
                               }
                             } else if (e.key === 'ArrowUp') {
-                              if (activeSearchIndex === 999 && filteredMeds.length > 0) {
+                              if (activeSearchIndex === 999 && (filteredMeds || []).length > 0) {
                                 e.preventDefault();
                                 setMedHighlightedIndex(prev => {
                                   const next = prev <= 0 ? filteredMeds.length - 1 : prev - 1;
@@ -4888,26 +4978,28 @@ export default function App() {
                             } else if (e.key === 'Enter') {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
+                              if (activeSearchIndex === 999 && (filteredMeds || []).length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
                                 const selected = filteredMeds[medHighlightedIndex];
-                                const autoFreq = detectSmartDrugTiming(selected.name, selected.composition, rxInstructionLanguage);
-                                setTempMed({
-                                  name: selected.name,
-                                  composition: selected.composition || '',
-                                  dosage: selected.dosage || '',
-                                  frequency: autoFreq || tempMed.frequency || ''
-                                });
-                                setActiveSearchIndex(null);
-                                setMedHighlightedIndex(0);
-                                setTimeout(() => {
-                                  if (selected.dosage) {
-                                    medFrequencyInputRef.current?.focus();
-                                    medFrequencyInputRef.current?.select();
-                                  } else {
-                                    medDosageInputRef.current?.focus();
-                                  }
-                                }, 60);
-                              } else if (tempMed.name.trim()) {
+                                if (selected) {
+                                  const autoFreq = detectSmartDrugTiming(selected.name || '', selected.composition || '', rxInstructionLanguage);
+                                  setTempMed({
+                                    name: selected.name || '',
+                                    composition: selected.composition || '',
+                                    dosage: selected.dosage || '',
+                                    frequency: autoFreq || tempMed.frequency || ''
+                                  });
+                                  setActiveSearchIndex(null);
+                                  setMedHighlightedIndex(0);
+                                  setTimeout(() => {
+                                    if (selected.dosage) {
+                                      medFrequencyInputRef.current?.focus();
+                                      medFrequencyInputRef.current?.select();
+                                    } else {
+                                      medDosageInputRef.current?.focus();
+                                    }
+                                  }, 60);
+                                }
+                              } else if (tempMed?.name && typeof tempMed.name === 'string' && tempMed.name.trim()) {
                                 setActiveSearchIndex(null);
                                 const autoFreq = !tempMed.frequency ? detectSmartDrugTiming(tempMed.name, tempMed.composition, rxInstructionLanguage) : '';
                                 if (autoFreq) {
@@ -4924,26 +5016,28 @@ export default function App() {
                               e.preventDefault();
                               setActiveSearchIndex(null);
                             } else if (e.key === 'Tab' && !e.shiftKey) {
-                              if (activeSearchIndex === 999 && filteredMeds.length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
+                              if (activeSearchIndex === 999 && (filteredMeds || []).length > 0 && medHighlightedIndex >= 0 && medHighlightedIndex < filteredMeds.length) {
                                 e.preventDefault();
                                 const selected = filteredMeds[medHighlightedIndex];
-                                const autoFreq = detectSmartDrugTiming(selected.name, selected.composition, rxInstructionLanguage);
-                                setTempMed({
-                                  name: selected.name,
-                                  composition: selected.composition || '',
-                                  dosage: selected.dosage || '',
-                                  frequency: autoFreq || tempMed.frequency || ''
-                                });
-                                setActiveSearchIndex(null);
-                                setMedHighlightedIndex(0);
-                                setTimeout(() => {
-                                  if (selected.dosage) {
-                                    medFrequencyInputRef.current?.focus();
-                                    medFrequencyInputRef.current?.select();
-                                  } else {
-                                    medDosageInputRef.current?.focus();
-                                  }
-                                }, 60);
+                                if (selected) {
+                                  const autoFreq = detectSmartDrugTiming(selected.name || '', selected.composition || '', rxInstructionLanguage);
+                                  setTempMed({
+                                    name: selected.name || '',
+                                    composition: selected.composition || '',
+                                    dosage: selected.dosage || '',
+                                    frequency: autoFreq || tempMed.frequency || ''
+                                  });
+                                  setActiveSearchIndex(null);
+                                  setMedHighlightedIndex(0);
+                                  setTimeout(() => {
+                                    if (selected.dosage) {
+                                      medFrequencyInputRef.current?.focus();
+                                      medFrequencyInputRef.current?.select();
+                                    } else {
+                                      medDosageInputRef.current?.focus();
+                                    }
+                                  }, 60);
+                                }
                               }
                             }
                           }}
@@ -4951,7 +5045,7 @@ export default function App() {
                         />
                         
                         {/* Autocomplete Dropdown list with keyboard navigation & scroll */}
-                        {activeSearchIndex === 999 && tempMed.name.trim() !== '' && (
+                        {Boolean(activeSearchIndex === 999 && tempMed?.name && typeof tempMed.name === 'string' && tempMed.name.trim() !== '') && (
                           <div 
                             ref={medDropdownRef}
                             style={{
@@ -4969,24 +5063,26 @@ export default function App() {
                             }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.75rem', backgroundColor: '#f0fdfa', borderBottom: '1px solid #ccfbf1', fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>
-                              <span>Matching Medicines ({filteredMeds.length})</span>
+                              <span>Matching Medicines ({(filteredMeds || []).length})</span>
                               <span>↑ / ↓ navigate • ↵ Enter to select</span>
                             </div>
-                            {filteredMeds.length === 0 ? (
+                            {(filteredMeds || []).length === 0 ? (
                               <div style={{ padding: '0.65rem 0.75rem', fontSize: '0.8rem', color: 'var(--neutral-body)', fontStyle: 'italic' }}>
                                 No matching medicines in DB. Press ↵ Enter to enter custom dosage.
                               </div>
                             ) : (
-                              filteredMeds.map((m, idx) => {
+                              (filteredMeds || []).map((m, idx) => {
+                                if (!m) return null;
                                 const isSelected = idx === medHighlightedIndex;
+                                const medName = m.name || '';
                                 return (
                                   <div 
                                     key={m.id || idx}
                                     id={`med-dropdown-item-${idx}`}
                                     onMouseDown={() => {
-                                      const autoFreq = detectSmartDrugTiming(m.name, m.composition, rxInstructionLanguage);
+                                      const autoFreq = detectSmartDrugTiming(m.name || '', m.composition || '', rxInstructionLanguage);
                                       setTempMed({
-                                        name: m.name,
+                                        name: m.name || '',
                                         composition: m.composition || '',
                                         dosage: m.dosage || '',
                                         frequency: autoFreq || tempMed.frequency || ''
@@ -5017,7 +5113,7 @@ export default function App() {
                                     }}
                                   >
                                     <div>
-                                      <strong style={{ color: isSelected ? '#0f766e' : 'var(--neutral-dark)' }}>{m.name}</strong>
+                                      <strong style={{ color: isSelected ? '#0f766e' : 'var(--neutral-dark)' }}>{medName}</strong>
                                       {m.composition && (
                                         <span style={{ fontSize: '0.74rem', color: '#b91c1c', fontStyle: 'italic', marginLeft: '0.35rem' }}>
                                           ({m.composition})
@@ -5228,11 +5324,11 @@ export default function App() {
                   </div>
 
                   {/* Display List of Added Medicines under the entry box */}
-                  {offlineForm.medications.length > 0 && (
+                  {(offlineForm?.medications || []).length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--neutral-dark)' }}>
-                          Added Medicines ({offlineForm.medications.length})
+                          Added Medicines ({(offlineForm?.medications || []).length})
                         </label>
                         <span style={{ fontSize: '0.72rem', color: 'var(--neutral-body)' }}>
                           Click ✏️ Edit to modify any medicine
@@ -5240,7 +5336,8 @@ export default function App() {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {offlineForm.medications.map((med, index) => {
+                        {(offlineForm?.medications || []).map((med, index) => {
+                          if (!med) return null;
                           const isEditingThis = editingOfflineMedIndex === index;
 
                           if (isEditingThis) {
@@ -5394,7 +5491,7 @@ export default function App() {
                             >
                               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '0.5rem' }}>
                                 <span style={{ fontWeight: 800, color: 'var(--neutral-dark)', fontSize: '0.88rem' }}>
-                                  {index + 1}. {med.name}
+                                  {index + 1}. {med.name || 'Unnamed Medicine'}
                                 </span>
                                 {(med.composition || med.dosage || med.frequency) && (
                                   <span style={{ fontSize: '0.75rem', color: 'var(--neutral-body)', marginTop: '0.15rem' }}>
@@ -6225,26 +6322,29 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody>
-                              {offlineForm.medications.map((med, idx) => (
-                                <tr 
-                                  key={idx} 
-                                  style={{ 
-                                    backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#fff',
-                                    borderBottom: '1px solid #f1f5f9'
-                                  }}
-                                >
-                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000' }}>
-                                    <div style={{ fontWeight: 800 }}>{med.name || '__________________'}</div>
-                                    {med.composition && med.composition.trim() && (
-                                      <div style={{ fontSize: '0.85em', color: '#b91c1c', fontWeight: 700, fontStyle: 'italic', marginTop: '0.15rem' }}>
-                                        ({med.composition.trim()})
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.dosage || ''}</td>
-                                  <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.frequency || '_______________'}</td>
-                                </tr>
-                              ))}
+                              {(offlineForm?.medications || []).map((med, idx) => {
+                                if (!med) return null;
+                                return (
+                                  <tr 
+                                    key={idx} 
+                                    style={{ 
+                                      backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#fff',
+                                      borderBottom: '1px solid #f1f5f9'
+                                    }}
+                                  >
+                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000' }}>
+                                      <div style={{ fontWeight: 800 }}>{med.name || '__________________'}</div>
+                                      {med.composition && typeof med.composition === 'string' && med.composition.trim() ? (
+                                        <div style={{ fontSize: '0.85em', color: '#b91c1c', fontWeight: 700, fontStyle: 'italic', marginTop: '0.15rem' }}>
+                                          ({med.composition.trim()})
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.dosage || ''}</td>
+                                    <td style={{ padding: `${offlineLayout.rowSpacing}px 10px`, color: '#000000', fontWeight: 700 }}>{med.frequency || '_______________'}</td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -6645,7 +6745,7 @@ export default function App() {
                   </label>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    {prescriptionForm.medications.map((med, index) => (
+                    {(prescriptionForm?.medications || []).map((med, index) => (
                       <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 40px', gap: '0.5rem', alignItems: 'center' }}>
                         <input 
                           type="text" 
