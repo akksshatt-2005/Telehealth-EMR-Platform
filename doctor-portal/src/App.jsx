@@ -498,6 +498,7 @@ export default function App() {
   const medNameInputRef = useRef(null);
   const medDosageInputRef = useRef(null);
   const medFrequencyInputRef = useRef(null);
+  const medDropdownRef = useRef(null);
   const diagnosisInputRef = useRef(null);
   const chiefComplaintsInputRef = useRef(null);
   const quickLookupInputRef = useRef(null);
