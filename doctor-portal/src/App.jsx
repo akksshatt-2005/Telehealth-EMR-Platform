@@ -1556,6 +1556,16 @@ export default function App() {
       return;
     }
 
+    // Cleanly clone element, reset transform, and strip any screen-only elements
+    const clone = printElem.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.width = '100%';
+    clone.style.maxWidth = '100%';
+    clone.style.border = 'none';
+    clone.style.boxShadow = 'none';
+    clone.style.backgroundColor = '#ffffff';
+    clone.querySelectorAll('.no-print').forEach(el => el.remove());
+
     // Remove any previous temporary print iframe
     const oldIframe = document.getElementById('print-prescription-frame');
     if (oldIframe) {
@@ -1607,12 +1617,13 @@ export default function App() {
               min-height: 100vh !important;
               height: 100vh !important;
               max-height: 100vh !important;
+              transform: none !important;
               box-sizing: border-box !important;
               box-shadow: none !important;
               border: none !important;
               display: flex !important;
               flex-direction: column !important;
-              justify-content: space-between !important;
+              justifyContent: space-between !important;
               page-break-inside: avoid !important;
               page-break-before: avoid !important;
               page-break-after: avoid !important;
@@ -1621,10 +1632,14 @@ export default function App() {
               break-after: avoid !important;
               overflow: hidden !important;
             }
+            .no-print {
+              display: none !important;
+              visibility: hidden !important;
+            }
           </style>
         </head>
         <body>
-          ${printElem.outerHTML}
+          ${clone.outerHTML}
         </body>
       </html>
     `);
@@ -6041,64 +6056,9 @@ export default function App() {
                       }}
                     >
                     <div>
-                      {/* Premium Letterhead Header or Pre-printed Paper Spacer */}
+                      {/* Premium Letterhead Header or Pre-printed Paper Blank Spacer */}
                       {offlineLayout.useLetterhead ? (
-                        <div 
-                          style={{ 
-                            height: `${Math.max(100, (offlineLayout.letterheadTopMargin || 340) - offlineLayout.marginSize)}px`,
-                            marginBottom: '1rem',
-                            position: 'relative',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          {/* On Screen Live Preview Indicator */}
-                          <div 
-                            className="no-print" 
-                            style={{
-                              height: '100%',
-                              backgroundColor: '#f8fafc',
-                              border: '2px dashed #94a3b8',
-                              borderRadius: '8px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '1rem',
-                              textAlign: 'center',
-                              boxSizing: 'border-box'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1e293b', fontWeight: 800, fontSize: '0.88em' }}>
-                              <span>📋</span>
-                              <span>Pre-Printed Letterhead Paper Mode Active ({offlineLayout.letterheadTopMargin || 340}px)</span>
-                            </div>
-                            <div style={{ fontSize: '0.74em', color: '#64748b', marginTop: '0.25rem', maxWidth: '420px', lineHeight: 1.35 }}>
-                              This area is reserved for physical stationery. When printed, your clinic stationery fills this space.
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                localStorage.setItem('useLetterheadOffline', 'false');
-                                setOfflineLayout(prev => ({ ...prev, useLetterhead: false }));
-                              }}
-                              style={{
-                                marginTop: '0.5rem',
-                                padding: '0.3rem 0.8rem',
-                                fontSize: '0.74em',
-                                fontWeight: 700,
-                                backgroundColor: '#0f766e',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }}
-                            >
-                              ↺ Switch to Standard Digital Header (Mental Wellness Clinic)
-                            </button>
-                          </div>
-                        </div>
+                        <div style={{ height: `${offlineLayout.letterheadTopMargin || 285}px` }} />
                       ) : (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', borderBottom: '2px solid #0f766e', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                           <div>
