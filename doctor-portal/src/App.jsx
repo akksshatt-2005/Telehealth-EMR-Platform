@@ -340,8 +340,8 @@ export const TIMING_QUICK_PRESETS = [
     id: 'twice_daily_meals',
     icon: '🍽️',
     shortLabel: '1-0-1 खाने बाद',
-    bilingual: '1-0-1 (खाना खाने के बाद / Twice daily after meals)',
-    hindi: '1-0-1 (सुबह-शाम खाना खाने के बाद)',
+    bilingual: '1-0-1 (एक गोली सुबह और एक गोली रात को / Twice daily after meals)',
+    hindi: '1-0-1 (एक गोली सुबह और एक गोली रात को)',
     english: '1-0-1 (Twice daily after meals)'
   },
   {
