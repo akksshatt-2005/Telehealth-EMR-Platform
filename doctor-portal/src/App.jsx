@@ -322,11 +322,11 @@ export const detectSmartDrugTiming = (name = '', composition = '', lang = 'bilin
 export const TIMING_QUICK_PRESETS = [
   {
     id: 'empty_stomach',
-    icon: '🌅',
-    shortLabel: '1-0-0 खाली पेट',
-    bilingual: '1-0-0 (सुबह खाली पेट / Empty stomach in morning)',
-    hindi: '1-0-0 (सुबह खाली पेट - नाश्ते से 30 मिनट पहले)',
-    english: '1-0-0 (Empty stomach - 30 mins before breakfast)'
+    icon: '',
+    shortLabel: 'BBF',
+    bilingual: 'BBF (सुबह खाली पेट / Empty stomach in morning)',
+    hindi: 'BBF (सुबह खाली पेट - नाश्ते से 30 मिनट पहले)',
+    english: 'BBF (Empty stomach in morning)'
   },
   {
     id: 'morning_after_meal',
@@ -5284,7 +5284,7 @@ export default function App() {
                                   transition: 'all 0.12s ease'
                                 }}
                               >
-                                <span>{preset.icon}</span>
+                                {preset.icon ? <span>{preset.icon}</span> : null}
                                 <span>{preset.shortLabel}</span>
                               </button>
                             );
@@ -5444,7 +5444,7 @@ export default function App() {
                                               cursor: 'pointer'
                                             }}
                                           >
-                                            {preset.icon} {preset.shortLabel}
+                                            {preset.icon ? `${preset.icon} ` : ''}{preset.shortLabel}
                                           </button>
                                         );
                                       })}

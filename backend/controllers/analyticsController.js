@@ -24,7 +24,7 @@ function estimateQuantity(med) {
     dailyDoses = 2;
   } else if (freqStr.includes('1-1-0') || freqStr.includes('0-1-1')) {
     dailyDoses = 2;
-  } else if (freqStr.includes('0-0-1') || freqStr.includes('1-0-0') || freqStr.includes('od') || freqStr.includes('hs')) {
+  } else if (freqStr.includes('0-0-1') || freqStr.includes('1-0-0') || freqStr.includes('od') || freqStr.includes('hs') || freqStr.includes('bbf')) {
     dailyDoses = 1;
   } else if (freqStr.includes('sos') || freqStr.includes('prn')) {
     dailyDoses = 0.5;
