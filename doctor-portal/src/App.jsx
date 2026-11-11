@@ -762,8 +762,15 @@ export default function App() {
           });
           if (filtered.length > 0) {
             // Prune duplicate or runaway items from previous loops
-            const cleaned = deduplicateQueue(filtered).filter(p => !String(p.id).startsWith('local-queue-') || p.id === 'mock-1');
-            const finalClean = (cleaned.length > 0 ? cleaned : SAMPLE_OPD_QUEUE).slice(0, 15);
+            const cleaned = deduplicateQueue(filtered).filter(p => !String(p.id).startsWith('local-queue-') || p.id === 'mock-1' || p.token_number > 6);
+            // Self-heal: If follow-up tokens were mistakenly auto-completed by reference matching without consultation, restore to WAITING
+            const healed = cleaned.map(p => {
+              if (p.token_number > 6 && (p.patient_type === 'FOLLOW_UP' || p.type === 'FOLLOW_UP') && p.status === 'COMPLETED') {
+                return { ...p, status: 'WAITING' };
+              }
+              return p;
+            });
+            const finalClean = (healed.length > 0 ? healed : SAMPLE_OPD_QUEUE).slice(0, 15);
             const hasShabana = finalClean.some(p => (p.patient_name || '').toLowerCase().includes('shabana'));
             if (!hasShabana && finalClean.some(p => p.id === 'mock-1')) {
               finalClean.splice(1, 0, SAMPLE_OPD_QUEUE[1]);
@@ -1945,6 +1952,11 @@ export default function App() {
               } catch (e) {
                 return false;
               }
+            }).map(p => {
+              if (p.token_number > 6 && (p.patient_type === 'FOLLOW_UP' || p.type === 'FOLLOW_UP') && p.status === 'COMPLETED') {
+                return { ...p, status: 'WAITING' };
+              }
+              return p;
             }) : [];
             setOpdQueue(todayOnly);
           }
@@ -2590,20 +2602,28 @@ export default function App() {
       privateNotes: rxData.privateNotes !== undefined ? rxData.privateNotes : (prev.privateNotes || '')
     }));
 
-    // Auto-mark any matching patient in OPD Queue as COMPLETED
+    // Auto-mark ONLY the actively consulted patient in OPD Queue as COMPLETED
     const pName = (rxData.patientName || '').trim().toLowerCase();
-    setOpdQueue(prev => {
-      const next = prev.map(item => {
+    const targetQueueId = activeConsultingQueueId || (() => {
+      const found = (opdQueue || []).find(item => {
+        if (item.status === 'COMPLETED' || item.status === 'CONSULTED') return false;
         const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim();
         const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
-        const isMatch = (activeConsultingQueueId && item.id === activeConsultingQueueId) ||
-                        (cleanRefNum && itemRef && cleanRefNum === itemRef) ||
-                        (pName && itemName && pName === itemName);
-        return isMatch ? { ...item, status: 'COMPLETED' } : item;
+        return (cleanRefNum && itemRef && cleanRefNum === itemRef) ||
+               (pName && itemName && pName === itemName);
       });
-      try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
-      return next;
-    });
+      return found ? found.id : null;
+    })();
+
+    if (targetQueueId) {
+      setOpdQueue(prev => {
+        const next = prev.map(item => {
+          return item.id === targetQueueId ? { ...item, status: 'COMPLETED' } : item;
+        });
+        try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+    }
     setActiveConsultingQueueId(null);
   };
 
@@ -2650,7 +2670,8 @@ export default function App() {
         id: isNewVisit ? undefined : (currentRxId || undefined),
         ...offlineForm,
         medications: currentMeds,
-        ...offlineLayout
+        ...offlineLayout,
+        queuePatientId: activeConsultingQueueId || undefined
       };
 
       const response = await fetch(`${API_BASE_URL}/doctor/offline-prescriptions`, {
@@ -2675,36 +2696,34 @@ export default function App() {
         fetchOfflinePrescriptions();
         fetchMedicines();
 
-        // Cross-match and auto-complete any OPD Queue patient matching this prescription
+        // Mark ONLY the actively consulted patient in OPD Queue as COMPLETED
         const currentRef = (data.prescription?.referenceId || offlineForm.referenceId || '').replace(/^ref-?/i, '').trim();
         const currentPatientName = (offlineForm.patientName || '').trim().toLowerCase();
 
-        setOpdQueue(prev => {
-          const next = prev.map(item => {
+        const targetQueueId = activeConsultingQueueId || (() => {
+          const found = (opdQueue || []).find(item => {
+            if (item.status === 'COMPLETED' || item.status === 'CONSULTED') return false;
             const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim();
             const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
-            const isMatch = (activeConsultingQueueId && item.id === activeConsultingQueueId) ||
-                            (currentRef && itemRef && currentRef === itemRef) ||
-                            (currentPatientName && itemName && currentPatientName === itemName);
-            return isMatch ? { ...item, status: 'COMPLETED' } : item;
-          });
-          try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
-          return next;
-        });
-
-        // Notify backend for all matching queue items
-        try {
-          const matchingQueueItems = (opdQueue || []).filter(item => {
-            const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim();
-            const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
-            return (activeConsultingQueueId && item.id === activeConsultingQueueId) ||
-                   (currentRef && itemRef && currentRef === itemRef) ||
+            return (currentRef && itemRef && currentRef === itemRef) ||
                    (currentPatientName && itemName && currentPatientName === itemName);
           });
+          return found ? found.id : null;
+        })();
 
-          for (const mItem of matchingQueueItems) {
-            if (!String(mItem.id).startsWith('local-')) {
-              await fetch(`${API_BASE_URL}/opd/queue/${mItem.id}/status`, {
+        if (targetQueueId) {
+          setOpdQueue(prev => {
+            const next = prev.map(item => {
+              return item.id === targetQueueId ? { ...item, status: 'COMPLETED' } : item;
+            });
+            try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
+            return next;
+          });
+
+          // Notify backend for ONLY this specific queue item
+          try {
+            if (!String(targetQueueId).startsWith('local-')) {
+              await fetch(`${API_BASE_URL}/opd/queue/${targetQueueId}/status`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
@@ -2713,9 +2732,9 @@ export default function App() {
                 body: JSON.stringify({ status: 'COMPLETED' })
               });
             }
+          } catch (qErr) {
+            console.warn('Queue status update notice:', qErr);
           }
-        } catch (qErr) {
-          console.warn('Queue status update notice:', qErr);
         }
 
         setActiveConsultingQueueId(null);
@@ -5127,16 +5146,7 @@ export default function App() {
                   const queueList = deduplicateQueue((opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE);
 
                   const isPatientDone = (q) => {
-                    const rawRef = q.reference_id || q.referenceId;
-                    const cRef = rawRef ? String(rawRef).replace(/^ref-?/i, '').trim().toLowerCase() : '';
-                    const qName = (q.patient_name || q.name || '').trim().toLowerCase();
-                    const hasRx = (offlineRxList || []).some(r => {
-                      const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
-                      if (cRef && rRef && cRef === rRef) return true;
-                      const rName = (r.patientName || '').trim().toLowerCase();
-                      return qName && rName && qName === rName;
-                    });
-                    return q.status === 'COMPLETED' || q.status === 'CONSULTED' || hasRx;
+                    return q.status === 'COMPLETED' || q.status === 'CONSULTED';
                   };
 
                   const waitingCount = queueList.filter(q => !isPatientDone(q)).length;
@@ -5241,8 +5251,11 @@ export default function App() {
                           const payMode = qPatient.payment_mode || qPatient.mode || 'Cash';
                           const isCurrent = activeConsultingQueueId === qPatient.id;
 
-                          // Cross-reference with offlineRxList to find if patient already has a prescription completed
-                          const matchingRx = offlineRxList.find(rx => {
+                          // A patient is ONLY done if their queue status is explicitly COMPLETED or CONSULTED
+                          const isDone = qPatient.status === 'COMPLETED' || qPatient.status === 'CONSULTED';
+
+                          // Cross-reference with offlineRxList ONLY for completed patients to provide View Rx button
+                          const matchingRx = isDone ? offlineRxList.find(rx => {
                             const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
                             if (cleanRefNum && rxRef && cleanRefNum === rxRef) return true;
                             const rxName = (rx.patientName || '').trim().toLowerCase();
@@ -5252,9 +5265,7 @@ export default function App() {
                               return !rxDay || rxDay === getLocalDateStr();
                             }
                             return false;
-                          });
-
-                          const isDone = qPatient.status === 'COMPLETED' || qPatient.status === 'CONSULTED' || Boolean(matchingRx);
+                          }) : null;
 
                           return (
                             <div

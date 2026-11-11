@@ -15,19 +15,27 @@ const DEFAULT_OPD_QUEUE = [
 let inMemoryOpdQueue = [...DEFAULT_OPD_QUEUE];
 
 /**
- * Mark a patient in the in-memory OPD queue as COMPLETED based on referenceId or patientName.
+ * Mark a patient in the in-memory OPD queue as COMPLETED based on queueId or the first WAITING patient matching referenceId/patientName.
  */
-export function markQueuePatientCompletedInMemory({ referenceId, patientName }) {
+export function markQueuePatientCompletedInMemory({ queueId, referenceId, patientName }) {
   const refClean = referenceId ? String(referenceId).replace(/^ref-?/i, '').trim().toLowerCase() : '';
   const nameClean = patientName ? String(patientName).trim().toLowerCase() : '';
   let updatedItem = null;
+  let matchedOne = false;
 
   inMemoryOpdQueue = inMemoryOpdQueue.map(item => {
-    const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
-    const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
-    if ((refClean && itemRef && refClean === itemRef) || (nameClean && itemName && nameClean === itemName)) {
+    if (queueId && item.id === queueId) {
       updatedItem = { ...item, status: 'COMPLETED' };
       return updatedItem;
+    }
+    if (!queueId && !matchedOne && item.status === 'WAITING') {
+      const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+      const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
+      if ((refClean && itemRef && refClean === itemRef) || (nameClean && itemName && nameClean === itemName)) {
+        matchedOne = true;
+        updatedItem = { ...item, status: 'COMPLETED' };
+        return updatedItem;
+      }
     }
     return item;
   });

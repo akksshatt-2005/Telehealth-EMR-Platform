@@ -302,7 +302,8 @@ export async function createOfflinePrescription(req, res) {
     weight,
     followUpDate,
     consultDate,
-    privateNotes
+    privateNotes,
+    queuePatientId
   } = req.body;
 
   if (!patientName || !patientAge || !patientGender || !diagnosis) {
@@ -521,15 +522,36 @@ export async function createOfflinePrescription(req, res) {
       }
     }
 
-    // Auto-mark any matching patient in OPD Queue as COMPLETED
-    if (finalReferenceId || patientName) {
+    // Auto-mark ONLY the actively consulted patient in OPD Queue as COMPLETED
+    if (queuePatientId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(queuePatientId));
+      if (isUuid) {
+        try {
+          await prisma.$executeRawUnsafe(`
+            UPDATE "opd_queue"
+            SET "status" = 'COMPLETED', "updated_at" = NOW()
+            WHERE "id" = $1::uuid;
+          `, queuePatientId);
+        } catch (qDbErr) {}
+      }
+      try {
+        markQueuePatientCompletedInMemory({ queueId: queuePatientId });
+      } catch (e) {}
+    } else if (finalReferenceId || patientName) {
       try {
         const cleanRefPattern = finalReferenceId ? `%${finalReferenceId.replace(/^ref-?/i, '').trim()}%` : '%';
         const cleanNamePattern = patientName ? `%${patientName.trim()}%` : '%';
+        // Only mark the single earliest WAITING token so future follow-up tokens stay waiting
         await prisma.$executeRawUnsafe(`
           UPDATE "opd_queue"
           SET "status" = 'COMPLETED', "updated_at" = NOW()
-          WHERE "reference_id" ILIKE $1 OR "patient_name" ILIKE $2;
+          WHERE "id" = (
+            SELECT "id" FROM "opd_queue"
+            WHERE "status" = 'WAITING'
+              AND ("reference_id" ILIKE $1 OR "patient_name" ILIKE $2)
+            ORDER BY "token_number" ASC
+            LIMIT 1
+          );
         `, cleanRefPattern, cleanNamePattern);
       } catch (qDbErr) {
         // Fallback to in-memory queue update if DB is offline
