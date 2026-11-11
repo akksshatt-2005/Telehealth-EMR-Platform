@@ -531,13 +531,13 @@ export async function createOfflinePrescription(req, res) {
       try {
         const cleanRefPattern = finalReferenceId ? `%${finalReferenceId.replace(/^ref-?/i, '').trim()}%` : '%';
         const cleanNamePattern = patientName ? `%${patientName.trim()}%` : '%';
-        // Only mark the single earliest WAITING token so future follow-up tokens stay waiting
+        // Only mark the single earliest WAITING or IN_CONSULTATION token so future follow-up tokens stay waiting
         await prisma.$executeRawUnsafe(`
           UPDATE "opd_queue"
           SET "status" = 'COMPLETED', "updated_at" = NOW(), "prescription_id" = $3
           WHERE "id" = (
             SELECT "id" FROM "opd_queue"
-            WHERE "status" = 'WAITING'
+            WHERE "status" IN ('WAITING', 'IN_CONSULTATION')
               AND ("reference_id" ILIKE $1 OR "patient_name" ILIKE $2)
             ORDER BY "token_number" ASC
             LIMIT 1
@@ -550,7 +550,7 @@ export async function createOfflinePrescription(req, res) {
             SET "status" = 'COMPLETED', "updated_at" = NOW()
             WHERE "id" = (
               SELECT "id" FROM "opd_queue"
-              WHERE "status" = 'WAITING'
+              WHERE "status" IN ('WAITING', 'IN_CONSULTATION')
                 AND ("reference_id" ILIKE $1 OR "patient_name" ILIKE $2)
               ORDER BY "token_number" ASC
               LIMIT 1

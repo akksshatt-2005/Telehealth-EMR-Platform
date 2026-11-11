@@ -28,7 +28,7 @@ export function markQueuePatientCompletedInMemory({ queueId, referenceId, patien
       updatedItem = { ...item, status: 'COMPLETED', prescription_id: prescriptionId || item.prescription_id };
       return updatedItem;
     }
-    if (!queueId && !matchedOne && item.status === 'WAITING') {
+    if (!queueId && !matchedOne && (item.status === 'WAITING' || item.status === 'IN_CONSULTATION')) {
       const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
       const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
       if ((refClean && itemRef && refClean === itemRef) || (nameClean && itemName && nameClean === itemName)) {
