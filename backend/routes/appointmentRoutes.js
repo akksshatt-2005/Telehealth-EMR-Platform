@@ -11,7 +11,9 @@ import {
   updateAppointmentStatusByPatient,
   createPrescription,
   createFeedback,
-  getJitsiConfig
+  getJitsiConfig,
+  deleteDoctorAppointment,
+  deleteAllDoctorAppointments
 } from '../controllers/appointmentController.js';
 
 const router = express.Router();
@@ -45,6 +47,10 @@ router.post('/doctor/appointments/:id/prescription', requireAuth, requireRole('D
 
 // Patient submit feedback for completed appointment
 router.post('/appointments/:id/feedback', requireAuth, createFeedback);
+
+// Doctor delete appointment(s)
+router.delete('/doctor/appointments', requireAuth, requireRole('DOCTOR'), deleteAllDoctorAppointments);
+router.delete('/doctor/appointments/:id', requireAuth, requireRole('DOCTOR'), deleteDoctorAppointment);
 
 export default router;
 

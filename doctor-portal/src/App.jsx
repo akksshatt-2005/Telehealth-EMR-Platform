@@ -2100,6 +2100,46 @@ export default function App() {
     }
   };
 
+  // Delete all online appointments
+  const clearAllAppointments = async () => {
+    if (!window.confirm('Are you sure you want to remove ALL online appointments?')) return;
+    setAppointments([]);
+    try {
+      if (token) {
+        await fetch(`${API_BASE_URL}/doctor/appointments`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+      setQueueNavToast('🗑️ Cleared all online appointments');
+      setTimeout(() => setQueueNavToast(null), 3000);
+    } catch (err) {
+      console.warn('Error clearing appointments:', err);
+    }
+  };
+
+  // Delete a specific appointment
+  const deleteAppointment = async (apptId, patientName) => {
+    if (!window.confirm(`Delete appointment for ${patientName || 'this patient'}?`)) return;
+    setAppointments(prev => prev.filter(a => (a.id || a.bookingId) !== apptId));
+    try {
+      if (token) {
+        await fetch(`${API_BASE_URL}/doctor/appointments/${apptId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+      setQueueNavToast(`🗑️ Deleted appointment for ${patientName || 'patient'}`);
+      setTimeout(() => setQueueNavToast(null), 3000);
+    } catch (err) {
+      console.warn('Error deleting appointment:', err);
+    }
+  };
+
   // Fetch offline prescriptions from API
   const fetchOfflinePrescriptions = async () => {
     if (!token) return;
@@ -4805,9 +4845,20 @@ export default function App() {
               <div className="glass-panel" style={{ padding: '2rem', boxShadow: 'var(--shadow-md)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--neutral-dark)' }}>Today's Scheduled Consultations</h3>
-                  <button className="btn btn-secondary" onClick={fetchAppointments} style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }} disabled={loadingAppts}>
-                    {loadingAppts ? 'Reloading...' : '↻ Refresh Grid'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {appointments.length > 0 && (
+                      <button 
+                        type="button"
+                        onClick={clearAllAppointments} 
+                        style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        🗑️ Clear All Appointments
+                      </button>
+                    )}
+                    <button className="btn btn-secondary" onClick={fetchAppointments} style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }} disabled={loadingAppts}>
+                      {loadingAppts ? 'Reloading...' : '↻ Refresh Grid'}
+                    </button>
+                  </div>
                 </div>
 
                 {loadingAppts && appointments.length === 0 ? (
@@ -5851,10 +5902,36 @@ export default function App() {
                         <span style={{ fontSize: '1rem' }}>🔗</span>
                         <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>Online Appts</strong>
                         <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
-                          ({(appointments && appointments.length > 0) ? appointments.length : 2})
+                          ({appointments?.length || 0})
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        {appointments && appointments.length > 0 && (
+                          <button 
+                            type="button"
+                            onClick={clearAllAppointments}
+                            title="Remove All Online Appointments"
+                            style={{
+                              background: '#fee2e2',
+                              border: '1px solid #fca5a5',
+                              borderRadius: '5px',
+                              cursor: 'pointer',
+                              color: '#dc2626',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              padding: '0.2rem 0.45rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#ef4444'; e.currentTarget.style.color = '#ffffff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }}
+                          >
+                            <span>🗑️</span>
+                            <span>Clear All</span>
+                          </button>
+                        )}
                         <button 
                           type="button"
                           onClick={fetchAppointments}
@@ -5890,48 +5967,83 @@ export default function App() {
                     </div>
 
                     <div className="rx-queue-list">
-                      {((appointments && appointments.length > 0) ? appointments : [
-                        { id: 'appt-1', patientName: 'Priyansh Verma', age: 28, gender: 'Male', phone: '9812345678', time: '07:30 PM', type: 'Video Call', status: 'CONFIRMED', chiefComplaints: 'Panic attacks in office, palpitation' },
-                        { id: 'appt-2', patientName: 'Meera Sen', age: 34, gender: 'Female', phone: '9823456789', time: '08:15 PM', type: 'Follow-up', status: 'CONFIRMED', chiefComplaints: 'Sleep disturbances & migraine aura' }
-                      ]).map((apt) => (
-                        <div 
-                          key={apt.id || apt.bookingId}
-                          className="rx-queue-card"
-                          onClick={() => {
-                            setOfflineForm(prev => ({
-                              ...prev,
-                              referenceId: `REF-${Math.floor(220 + Math.random() * 20)}/2026`,
-                              patientName: apt.patientName || apt.patient_name || '',
-                              patientPhone: apt.phone || apt.patientPhone || apt.patient_phone || '',
-                              patientAge: String(apt.age || apt.patientAge || '28'),
-                              patientGender: apt.gender || apt.patientGender || 'Male',
-                              chiefComplaints: (apt.chiefComplaints || apt.chief_complaints || 'Panic symptoms, palpitation').toUpperCase(),
-                              consultDate: getLocalDateStr()
-                            }));
-                            closeSidebar();
-                            setQueueNavToast(`📹 Loaded Video Patient: ${apt.patientName || apt.patient_name}`);
-                            setTimeout(() => setQueueNavToast(null), 3000);
-                          }}
-                          title="Click to load into prescription workspace"
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#1e293b' }}>
-                                {apt.patientName || apt.patient_name}
-                              </span>
-                              <span style={{ fontSize: '0.68rem', backgroundColor: '#ecfdf5', color: '#047857', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>
-                                {apt.time || '07:30 PM'}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700, marginTop: '0.15rem' }}>
-                              📹 {apt.type || 'Video Call'} · {apt.status || 'Confirmed'}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {apt.chiefComplaints || 'Online Psychiatric Evaluation'}
-                            </div>
+                      {(!appointments || appointments.length === 0) ? (
+                        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '2.4rem', marginBottom: '0.5rem' }}>📹</div>
+                          <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#0f172a' }}>No Online Appointments</div>
+                          <div style={{ fontSize: '0.78rem', marginTop: '0.35rem', color: '#64748b', lineHeight: 1.45 }}>
+                            No online video appointments scheduled.<br/>Online consultations booked by patients will appear here live.
                           </div>
                         </div>
-                      ))}
+                      ) : (
+                        appointments.map((apt) => {
+                          const pName = apt.patientName || apt.patient_name || 'Patient';
+                          const apptId = apt.id || apt.bookingId;
+                          return (
+                            <div 
+                              key={apptId}
+                              className="rx-queue-card"
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}
+                              onClick={() => {
+                                setOfflineForm(prev => ({
+                                  ...prev,
+                                  referenceId: `REF-${Math.floor(220 + Math.random() * 20)}/2026`,
+                                  patientName: pName,
+                                  patientPhone: apt.phone || apt.patientPhone || apt.patient_phone || '',
+                                  patientAge: String(apt.age || apt.patientAge || '28'),
+                                  patientGender: apt.gender || apt.patientGender || 'Male',
+                                  chiefComplaints: (apt.chiefComplaints || apt.chief_complaints || 'Panic symptoms, palpitation').toUpperCase(),
+                                  consultDate: getLocalDateStr()
+                                }));
+                                closeSidebar();
+                                setQueueNavToast(`📹 Loaded Video Patient: ${pName}`);
+                                setTimeout(() => setQueueNavToast(null), 3000);
+                              }}
+                              title="Click to load into prescription workspace"
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#1e293b' }}>
+                                    {pName}
+                                  </span>
+                                  <span style={{ fontSize: '0.68rem', backgroundColor: '#ecfdf5', color: '#047857', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>
+                                    {apt.slotTime || apt.time || '07:30 PM'}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700, marginTop: '0.15rem' }}>
+                                  📹 {apt.type || 'Video Call'} · {apt.status || 'Confirmed'}
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {apt.symptoms || apt.chiefComplaints || 'Online Psychiatric Evaluation'}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteAppointment(apptId, pName);
+                                }}
+                                title="Delete this appointment"
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  color: '#94a3b8',
+                                  fontSize: '0.85rem',
+                                  padding: '0.25rem 0.35rem',
+                                  borderRadius: '4px',
+                                  flexShrink: 0,
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fee2e2'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     <div style={{ padding: '0.75rem', borderTop: '1px solid #f1f5f9', backgroundColor: '#ffffff' }}>

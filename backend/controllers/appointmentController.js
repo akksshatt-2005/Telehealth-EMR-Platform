@@ -401,6 +401,67 @@ export async function updateAppointmentStatus(req, res, next) {
   }
 }
 
+/**
+ * Delete a single appointment (Doctor/Admin).
+ */
+export async function deleteDoctorAppointment(req, res, next) {
+  const { id } = req.params;
+  try {
+    await prisma.feedback.deleteMany({ where: { appointmentId: id } });
+    await prisma.payment.deleteMany({ where: { appointmentId: id } });
+    await prisma.prescription.deleteMany({ where: { appointmentId: id } });
+    await prisma.appointment.deleteMany({ where: { id } });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('appointment_deleted', { appointmentId: id });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Appointment deleted successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete all appointments for the doctor.
+ */
+export async function deleteAllDoctorAppointments(req, res, next) {
+  try {
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    const apptWhere = doctorProfile ? { doctorId: doctorProfile.id } : {};
+
+    await prisma.feedback.deleteMany({
+      where: doctorProfile ? { appointment: { doctorId: doctorProfile.id } } : {}
+    });
+    await prisma.payment.deleteMany({
+      where: doctorProfile ? { appointment: { doctorId: doctorProfile.id } } : {}
+    });
+    await prisma.prescription.deleteMany({
+      where: doctorProfile ? { appointment: { doctorId: doctorProfile.id } } : {}
+    });
+    const result = await prisma.appointment.deleteMany({ where: apptWhere });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('all_appointments_cleared');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `All appointments cleared successfully (${result.count} removed).`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function updateAppointmentStatusByPatient(req, res, next) {
   const { id } = req.params;
   const { status } = req.body;
