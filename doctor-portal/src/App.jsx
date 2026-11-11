@@ -740,36 +740,22 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const filtered = parsed.filter(item => {
-            if (!item.created_at) return true;
+            if (!item.created_at) return false;
             try {
               return getLocalDateStr(new Date(item.created_at)) === todayStr;
             } catch (e) {
-              return true;
+              return false;
             }
           });
           if (filtered.length > 0) {
-            // Prune duplicate or runaway items from previous loops
-            const cleaned = deduplicateQueue(filtered).filter(p => !String(p.id).startsWith('local-queue-') || p.id === 'mock-1' || p.token_number > 6);
-            // Self-heal: If follow-up tokens were mistakenly auto-completed by reference matching without consultation, restore to WAITING
-            const healed = cleaned.map(p => {
-              if (p.token_number > 6 && (p.patient_type === 'FOLLOW_UP' || p.type === 'FOLLOW_UP') && p.status === 'COMPLETED') {
-                return { ...p, status: 'WAITING' };
-              }
-              return p;
-            });
-            const finalClean = (healed.length > 0 ? healed : SAMPLE_OPD_QUEUE).slice(0, 15);
-            const hasShabana = finalClean.some(p => (p.patient_name || '').toLowerCase().includes('shabana'));
-            if (!hasShabana && finalClean.some(p => p.id === 'mock-1')) {
-              finalClean.splice(1, 0, SAMPLE_OPD_QUEUE[1]);
-            }
-            try { localStorage.setItem('cached_opd_queue', JSON.stringify(finalClean)); } catch(e){}
-            return finalClean;
+            const cleaned = deduplicateQueue(filtered).filter(p => !String(p.id).startsWith('local-queue-') || p.token_number > 6);
+            return cleaned.slice(0, 20);
           }
         }
       }
-      return SAMPLE_OPD_QUEUE;
+      return [];
     } catch (e) {
-      return SAMPLE_OPD_QUEUE;
+      return [];
     }
   });
   const [loadingOpdQueue, setLoadingOpdQueue] = useState(false);
@@ -981,14 +967,14 @@ export default function App() {
         return new Set(JSON.parse(saved));
       }
     } catch (e) {}
-    const initialList = (opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE;
+    const initialList = opdQueue || [];
     return new Set(initialList.map(p => String(p.id)));
   });
 
   // Calculate unread/new patient requests from front desk
   const newQueueCount = useMemo(() => {
     if (activeRailSection === 'queue') return 0;
-    const currentList = (opdQueue && opdQueue.length > 0) ? opdQueue : [];
+    const currentList = opdQueue || [];
     const unseen = currentList.filter(p => !seenQueuePatientIds.has(String(p.id)) && p.status !== 'COMPLETED');
     return unseen.length;
   }, [opdQueue, seenQueuePatientIds, activeRailSection]);
@@ -996,7 +982,7 @@ export default function App() {
   // When doctor opens the Today's Queue rail tab, mark all current patients as seen (clears badge)
   useEffect(() => {
     if (activeRailSection === 'queue') {
-      const currentList = (opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE;
+      const currentList = opdQueue || [];
       setSeenQueuePatientIds(prev => {
         const next = new Set(prev);
         let changed = false;
@@ -1891,11 +1877,11 @@ export default function App() {
       if (data.success && Array.isArray(data.queue)) {
         // Only keep items from today
         const serverTodayItems = data.queue.filter(item => {
-          if (!item.created_at) return true;
+          if (!item.created_at) return false;
           try {
             return getLocalDateStr(new Date(item.created_at)) === todayStr;
           } catch (e) {
-            return true;
+            return false;
           }
         });
 
@@ -5118,7 +5104,7 @@ export default function App() {
 
                 {/* 2. SECTION: TODAY'S OPD QUEUE (👥) */}
                 {activeRailSection === 'queue' && (() => {
-                  const queueList = deduplicateQueue((opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE);
+                  const queueList = deduplicateQueue(opdQueue || []);
 
                   const isPatientDone = (q) => {
                     return q.status === 'COMPLETED' || q.status === 'CONSULTED';
@@ -5210,7 +5196,16 @@ export default function App() {
                       </div>
 
                       <div className="rx-queue-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.55rem 0.75rem' }}>
-                        {sortedQueueList.map((qPatient) => {
+                        {sortedQueueList.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                            <div style={{ fontSize: '2.4rem', marginBottom: '0.5rem' }}>🪑</div>
+                            <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#0f172a' }}>No Patients Checked In Yet Today</div>
+                            <div style={{ fontSize: '0.78rem', marginTop: '0.35rem', color: '#64748b', lineHeight: 1.45 }}>
+                              New day started ({formatPrintDate(getLocalDateStr())}).<br/>Patients checked in at the Front Desk will appear here live.
+                            </div>
+                          </div>
+                        ) : (
+                          sortedQueueList.map((qPatient) => {
                           const tokenNum = qPatient.token_number || 1;
                           const patientName = qPatient.patient_name || qPatient.name || 'Patient';
                           const ageVal = qPatient.age || qPatient.patient_age;
@@ -5508,8 +5503,9 @@ export default function App() {
                               )}
                             </div>
                           );
-                        })}
-                      </div>
+                        })
+                      )}
+                    </div>
                     </>
                   );
                 })()}
@@ -5925,7 +5921,7 @@ export default function App() {
                       <div style={{ backgroundColor: '#f0fdfa', border: '1px solid #ccfbf1', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
                         <div style={{ fontSize: '0.7rem', color: '#0f766e', fontWeight: 800, textTransform: 'uppercase' }}>TODAY'S CONSULTATIONS</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', marginTop: '0.2rem' }}>
-                          {((opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE).length + ((appointments && appointments.length > 0) ? appointments.length : 2)}
+                          {(opdQueue || []).length + (appointments || []).length}
                         </div>
                         <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
                           OPD Tokens + Telehealth Video

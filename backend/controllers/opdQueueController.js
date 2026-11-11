@@ -4,12 +4,12 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DEFAULT_OPD_QUEUE = [
-  { id: 'mock-1', token_number: 1, patient_name: 'Naseem', patient_age: 53, age: 53, patient_gender: 'Male', gender: 'Male', patient_type: 'FOLLOW_UP', fee_status: 'FREE', payment_mode: 'FREE', reference_id: 'REF-213/2026', patient_phone: '9876543210', phone: '9876543210', status: 'WAITING', chief_complaints: 'ANXIETY , RESTLESSNESS, DYSPNEA, BODY PAINS, INTERMITTENT PANIC ATTACKS', diagnosis: 'PANIC DISORDER WITH MILD AGORAPHOBIA' },
-  { id: 'mock-2', token_number: 2, patient_name: 'Shabana Begum', patient_age: 48, age: 48, patient_gender: 'Female', gender: 'Female', patient_type: 'FOLLOW_UP', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-218/2026', patient_phone: '9876543210', phone: '9876543210', status: 'WAITING', chief_complaints: 'CHRONIC NECK STIFFNESS, BILATERAL TEMPLE HEADACHE', diagnosis: 'TENSION-TYPE HEADACHE & SOMATOFORM PAIN' },
-  { id: 'mock-3', token_number: 3, patient_name: 'Rupali Yadav', patient_age: 21, age: 21, patient_gender: 'Female', gender: 'Female', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-214/2026', patient_phone: '9876543211', phone: '9876543211', status: 'WAITING', chief_complaints: 'Throbbing headache', diagnosis: 'Episodic Migraine' },
-  { id: 'mock-4', token_number: 4, patient_name: 'Kartik', patient_age: 15, age: 15, patient_gender: 'Male', gender: 'Male', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-215/2026', patient_phone: '9876543212', phone: '9876543212', status: 'WAITING', chief_complaints: 'Exam stress', diagnosis: 'Adjustment reaction' },
-  { id: 'mock-5', token_number: 5, patient_name: 'Maksood Ali', patient_age: 40, age: 40, patient_gender: 'Male', gender: 'Male', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-216/2026', patient_phone: '9876543213', phone: '9876543213', status: 'WAITING', chief_complaints: 'Tension headaches', diagnosis: 'Tension headache' },
-  { id: 'mock-6', token_number: 6, patient_name: 'Sunita Sharma', patient_age: 36, age: 36, patient_gender: 'Female', gender: 'Female', patient_type: 'FOLLOW_UP', fee_status: 'PAID', payment_mode: 'UPI', reference_id: 'REF-217/2026', patient_phone: '9876543214', phone: '9876543214', status: 'WAITING', chief_complaints: 'Low mood', diagnosis: 'Depressive episode' }
+  { id: 'mock-1', token_number: 1, patient_name: 'Naseem', patient_age: 53, age: 53, patient_gender: 'Male', gender: 'Male', patient_type: 'FOLLOW_UP', fee_status: 'FREE', payment_mode: 'FREE', reference_id: 'REF-213/2026', patient_phone: '9876543210', phone: '9876543210', status: 'COMPLETED', chief_complaints: 'ANXIETY , RESTLESSNESS, DYSPNEA, BODY PAINS, INTERMITTENT PANIC ATTACKS', diagnosis: 'PANIC DISORDER WITH MILD AGORAPHOBIA', created_at: '2026-11-11T10:00:00.000Z' },
+  { id: 'mock-2', token_number: 2, patient_name: 'Shabana Begum', patient_age: 48, age: 48, patient_gender: 'Female', gender: 'Female', patient_type: 'FOLLOW_UP', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-218/2026', patient_phone: '9876543210', phone: '9876543210', status: 'COMPLETED', chief_complaints: 'CHRONIC NECK STIFFNESS, BILATERAL TEMPLE HEADACHE', diagnosis: 'TENSION-TYPE HEADACHE & SOMATOFORM PAIN', created_at: '2026-11-11T10:30:00.000Z' },
+  { id: 'mock-3', token_number: 3, patient_name: 'Rupali Yadav', patient_age: 21, age: 21, patient_gender: 'Female', gender: 'Female', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-214/2026', patient_phone: '9876543211', phone: '9876543211', status: 'COMPLETED', chief_complaints: 'Throbbing headache', diagnosis: 'Episodic Migraine', created_at: '2026-11-11T11:00:00.000Z' },
+  { id: 'mock-4', token_number: 4, patient_name: 'Kartik', patient_age: 15, age: 15, patient_gender: 'Male', gender: 'Male', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-215/2026', patient_phone: '9876543212', phone: '9876543212', status: 'COMPLETED', chief_complaints: 'Exam stress', diagnosis: 'Adjustment reaction', created_at: '2026-11-11T11:30:00.000Z' },
+  { id: 'mock-5', token_number: 5, patient_name: 'Maksood Ali', patient_age: 40, age: 40, patient_gender: 'Male', gender: 'Male', patient_type: 'NEW', fee_status: 'PAID', payment_mode: 'CASH', reference_id: 'REF-216/2026', patient_phone: '9876543213', phone: '9876543213', status: 'COMPLETED', chief_complaints: 'Tension headaches', diagnosis: 'Tension headache', created_at: '2026-11-11T12:00:00.000Z' },
+  { id: 'mock-6', token_number: 6, patient_name: 'Sunita Sharma', patient_age: 36, age: 36, patient_gender: 'Female', gender: 'Female', patient_type: 'FOLLOW_UP', fee_status: 'PAID', payment_mode: 'UPI', reference_id: 'REF-217/2026', patient_phone: '9876543214', phone: '9876543214', status: 'COMPLETED', chief_complaints: 'Low mood', diagnosis: 'Depressive episode', created_at: '2026-11-11T12:30:00.000Z' }
 ];
 
 let inMemoryOpdQueue = [...DEFAULT_OPD_QUEUE];
@@ -383,7 +383,16 @@ export async function getOpdQueue(req, res) {
     });
   } catch (error) {
     console.warn('Database offline, serving memory queue fallback:', error.message);
-    const sortedMemoryQueue = [...inMemoryOpdQueue].sort((a, b) => {
+    const targetDate = req.query.date ? String(req.query.date).trim() : null;
+    const filterDay = targetDate || new Date().toISOString().split('T')[0];
+
+    const todayItems = inMemoryOpdQueue.filter(item => {
+      if (!item.created_at) return false;
+      const itemDate = new Date(item.created_at).toISOString().split('T')[0];
+      return itemDate === filterDay;
+    });
+
+    const sortedMemoryQueue = [...todayItems].sort((a, b) => {
       const aDone = a.status === 'COMPLETED' || a.status === 'CONSULTED';
       const bDone = b.status === 'COMPLETED' || b.status === 'CONSULTED';
       if (aDone !== bDone) return aDone ? 1 : -1;
