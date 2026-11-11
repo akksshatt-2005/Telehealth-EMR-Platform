@@ -386,7 +386,7 @@ export async function createOfflinePrescription(req, res) {
     let prescription;
     let targetRxId = id;
 
-    // Prevent duplicate records when the doctor clicks Save or Print multiple times
+    // Prevent duplicate records when the doctor clicks Save or Print multiple times on the SAME visit
     if (!targetRxId && finalReferenceId) {
       try {
         const existingRx = await prisma.offlinePrescription.findFirst({
@@ -396,7 +396,11 @@ export async function createOfflinePrescription(req, res) {
           }
         });
         if (existingRx) {
-          targetRxId = existingRx.id;
+          const incomingDay = consultDate ? new Date(consultDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          const existingDay = existingRx.consultDate ? new Date(existingRx.consultDate).toISOString().split('T')[0] : (existingRx.createdAt ? new Date(existingRx.createdAt).toISOString().split('T')[0] : '');
+          if (existingDay && existingDay === incomingDay) {
+            targetRxId = existingRx.id;
+          }
         }
       } catch (findErr) {}
     }
@@ -548,11 +552,13 @@ export async function createOfflinePrescription(req, res) {
     const cleanRef = referenceId ? referenceId.trim() : `REF-${Math.floor(Math.random() * 900 + 100)}/2026`;
     const cleanRefNum = cleanRef.replace(/^ref-?/i, '').trim();
 
-    // Prevent duplicate records in memory fallback by finding existing record with matching ID or reference ID
+    // Prevent duplicate records in memory fallback by finding existing record with matching ID or reference ID on the same visit date
+    const incomingDay = consultDate ? String(consultDate).split('T')[0] : new Date().toISOString().split('T')[0];
     const existingIndex = inMemoryPrescriptions.findIndex(r => {
       if (id && r.id === id) return true;
       const rRef = String(r.referenceId || '').replace(/^ref-?/i, '').trim();
-      return cleanRefNum && rRef && cleanRefNum === rRef;
+      const rDay = r.consultDate ? String(r.consultDate).split('T')[0] : (r.createdAt ? String(r.createdAt).split('T')[0] : '');
+      return cleanRefNum && rRef && cleanRefNum === rRef && (!rDay || rDay === incomingDay);
     });
 
     const targetId = (existingIndex !== -1) ? inMemoryPrescriptions[existingIndex].id : (id || `rx-local-${Date.now()}`);

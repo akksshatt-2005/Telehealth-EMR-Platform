@@ -6137,8 +6137,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 4-col Patient Details */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 0.8fr 1fr', gap: '0.65rem', marginBottom: '0.65rem' }}>
+                {/* 5-col Patient Details */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1.1fr 0.65fr 0.85fr 1fr', gap: '0.65rem', marginBottom: '0.65rem' }}>
                   <div>
                     <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>NAME</label>
                     <input 
@@ -6181,6 +6181,15 @@ export default function App() {
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>VISIT DATE</label>
+                    <input 
+                      type="date"
+                      className="rx-input"
+                      value={offlineForm.consultDate || getLocalDateStr()}
+                      onChange={e => setOfflineForm(prev => ({ ...prev, consultDate: e.target.value }))}
+                    />
                   </div>
                 </div>
 
@@ -6704,10 +6713,10 @@ export default function App() {
                       )}
 
                       {/* Structured Patient Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '0.45rem', border: '1.5px solid #0f766e', borderRadius: '6px', padding: dynamicMedStyle.patientGridPadding, fontSize: '0.84em', marginBottom: '0.75rem', backgroundColor: '#f8fafc' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 0.9fr 1fr 0.95fr 0.9fr', gap: '0.45rem', border: '1.5px solid #0f766e', borderRadius: '6px', padding: dynamicMedStyle.patientGridPadding, fontSize: '0.84em', marginBottom: '0.75rem', backgroundColor: '#f8fafc' }}>
                         <div>
                           <strong style={{ color: '#64748b', fontSize: '0.75em' }}>NAME</strong>
-                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.02em' }}>{offlineForm.patientName || '------'}</div>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{offlineForm.patientName || '------'}</div>
                         </div>
                         <div>
                           <strong style={{ color: '#64748b', fontSize: '0.75em' }}>AGE / SEX</strong>
@@ -6720,6 +6729,10 @@ export default function App() {
                         <div>
                           <strong style={{ color: '#64748b', fontSize: '0.75em' }}>REF</strong>
                           <div style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.referenceId || '---'}</div>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#64748b', fontSize: '0.75em' }}>DATE</strong>
+                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{formatPrintDate(offlineForm.consultDate) || formatPrintDate(getLocalDateStr())}</div>
                         </div>
                       </div>
 
