@@ -4966,7 +4966,6 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           resetOfflineForm();
-                          closeSidebar();
                         }}
                         style={{
                           width: '100%',
@@ -5040,7 +5039,6 @@ export default function App() {
                               key={rx.id}
                               onClick={() => {
                                 loadOfflinePrescription(rx);
-                                closeSidebar();
                               }}
                               title={`Load prescription for ${rx.patientName}`}
                               style={{
@@ -5399,7 +5397,6 @@ export default function App() {
                                       type="button"
                                       onClick={() => {
                                         loadOfflinePrescription(matchingRx);
-                                        closeSidebar();
                                       }}
                                       title="Open this patient's completed prescription"
                                       style={{
@@ -6018,9 +6015,6 @@ export default function App() {
                 }
               }}
               className="rx-form-column"
-              onPointerDown={() => {
-                if (activeRailSection) closeSidebar();
-              }}
             >
               {/* Form Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -6586,9 +6580,6 @@ export default function App() {
             {/* 3. Right Column: Live Letterhead Preview */}
             <div 
               className="rx-preview-column"
-              onPointerDown={() => {
-                if (activeRailSection) closeSidebar();
-              }}
             >
               {/* Header Controls */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
