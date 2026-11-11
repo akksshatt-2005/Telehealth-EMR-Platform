@@ -6015,6 +6015,9 @@ export default function App() {
                 }
               }}
               className="rx-form-column"
+              onPointerDown={() => {
+                if (activeRailSection) closeSidebar();
+              }}
             >
               {/* Form Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -6580,6 +6583,9 @@ export default function App() {
             {/* 3. Right Column: Live Letterhead Preview */}
             <div 
               className="rx-preview-column"
+              onPointerDown={() => {
+                if (activeRailSection) closeSidebar();
+              }}
             >
               {/* Header Controls */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
