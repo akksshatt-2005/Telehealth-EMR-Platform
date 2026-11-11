@@ -62,15 +62,67 @@ const getFontFamilyCss = (fontName) => {
   return `'${name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
 };
 
+const isMockRxId = (id) => {
+  if (!id) return false;
+  const s = String(id);
+  return s.startsWith('rx-shaheen-') ||
+         s.startsWith('rx-amir-') ||
+         s.startsWith('rx-sakina-') ||
+         s.startsWith('rx-munni-') ||
+         s.startsWith('rx-peeyush-') ||
+         s.startsWith('rx-shabana-') ||
+         s.startsWith('sample-') ||
+         (s.startsWith('rx-naseem-') && (s === 'rx-naseem-4' || s === 'rx-naseem-3' || s === 'rx-naseem-2'));
+};
+
 const deduplicatePrescriptions = (list) => {
   if (!Array.isArray(list)) return [];
-  const seen = new Set();
-  return list.filter(item => {
+  // 1. Gather reference IDs and patient names from real (non-mock) prescriptions
+  const realRefs = new Set();
+  const realNames = new Set();
+  list.forEach(item => {
+    if (item && !isMockRxId(item.id)) {
+      const ref = String(item.referenceId || item.reference_id || '').replace(/^ref-?/i, '').trim().toUpperCase();
+      if (ref) realRefs.add(ref);
+      const name = String(item.patientName || '').trim().toLowerCase();
+      if (name) realNames.add(name);
+    }
+  });
+
+  // Filter out any mock dummy prescriptions that collide with real prescriptions
+  const filtered = list.filter(item => {
     if (!item) return false;
-    // Deduplicate strictly by prescription ID so multiple visits for the same patient/reference ID are never lost
-    const key = item.id ? String(item.id) : `rx_${item.referenceId || ''}_${item.consultDate || ''}_${item.patientName || ''}_${item.createdAt || ''}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (isMockRxId(item.id)) {
+      const ref = String(item.referenceId || item.reference_id || '').replace(/^ref-?/i, '').trim().toUpperCase();
+      const name = String(item.patientName || '').trim().toLowerCase();
+      // If we have real consultations, purge the mock duplicates
+      if ((ref && realRefs.has(ref)) || (name && realNames.has(name))) return false;
+    }
+    return true;
+  });
+
+  // 2. Deduplicate strictly by ID, and if two cards share the exact same cleanRef + consultDay + patientName + diagnosis, keep the newest one
+  const seenIds = new Set();
+  const seenExactConsultations = new Set();
+
+  return filtered.filter(item => {
+    if (!item) return false;
+    const idKey = item.id ? String(item.id) : null;
+    if (idKey && seenIds.has(idKey)) return false;
+    if (idKey) seenIds.add(idKey);
+
+    const cleanRef = String(item.referenceId || item.reference_id || '').replace(/^ref-?/i, '').trim().toUpperCase();
+    const consultDay = item.consultDate ? item.consultDate.split('T')[0] : (item.createdAt ? item.createdAt.split('T')[0] : '');
+    const cleanName = String(item.patientName || '').trim().toLowerCase();
+    const cleanDiag = String(item.diagnosis || '').trim().toLowerCase();
+
+    // Prevent duplicate cards if the exact same consultation record was saved/cached twice
+    if (cleanRef && consultDay && cleanName && cleanDiag) {
+      const visitKey = `${cleanRef}_${consultDay}_${cleanName}_${cleanDiag}`;
+      if (seenExactConsultations.has(visitKey)) return false;
+      seenExactConsultations.add(visitKey);
+    }
+
     return true;
   });
 };
@@ -775,17 +827,12 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          if (!parsed.some(r => (r.patientName || '').toLowerCase().includes('shabana'))) {
-            const merged = [...parsed, SAMPLE_OFFLINE_PRESCRIPTIONS[3]];
-            try { localStorage.setItem('cached_offline_prescriptions', JSON.stringify(merged)); } catch(e){}
-            return merged;
-          }
-          return parsed;
+          return deduplicatePrescriptions(parsed);
         }
       }
-      return SAMPLE_OFFLINE_PRESCRIPTIONS;
+      return [];
     } catch (e) {
-      return SAMPLE_OFFLINE_PRESCRIPTIONS;
+      return [];
     }
   });
   const [showPastVisitsDrawer, setShowPastVisitsDrawer] = useState(false);
@@ -2066,18 +2113,12 @@ export default function App() {
       const data = await response.json();
       if (data.success && Array.isArray(data.prescriptions)) {
         setOfflineRxList(prev => {
-          let cached = [];
-          try {
-            const raw = localStorage.getItem('cached_offline_prescriptions');
-            if (raw) cached = JSON.parse(raw);
-          } catch (e) {}
+          // Keep real database prescriptions + any genuinely unsynced local drafts (rx-local-*)
+          const unsyncedLocal = (Array.isArray(prev) ? prev : []).filter(r => 
+            String(r.id).startsWith('rx-local-') && !data.prescriptions.some(db => db.id === r.id)
+          );
 
-          const combined = [
-            ...data.prescriptions,
-            ...(Array.isArray(prev) ? prev : []),
-            ...(Array.isArray(cached) ? cached : []),
-            ...SAMPLE_OFFLINE_PRESCRIPTIONS
-          ];
+          const combined = [...unsyncedLocal, ...data.prescriptions];
           const cleanList = deduplicatePrescriptions(combined);
           cleanList.sort((a, b) => {
             const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
@@ -2099,8 +2140,7 @@ export default function App() {
           const cached = localStorage.getItem('cached_offline_prescriptions');
           let parsed = [];
           if (cached) parsed = JSON.parse(cached);
-          const combined = [...(Array.isArray(parsed) ? parsed : []), ...SAMPLE_OFFLINE_PRESCRIPTIONS];
-          setOfflineRxList(deduplicatePrescriptions(combined));
+          setOfflineRxList(deduplicatePrescriptions(parsed));
         } catch (cErr) {}
       }
     } catch (err) {
