@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -205,7 +206,7 @@ export async function loginDoctor(req, res, next) {
         const secret = process.env.JWT_ACCESS_SECRET || 'jwt_access_secret_neuro_harmony';
         const token = jwt.sign(
           {
-            id: 'reception-staff-session',
+            id: 'a0000000-0000-4000-8000-000000000001',
             email: 'reception@neuroharmony.in',
             role: 'DOCTOR' // Authorize as DOCTOR at JWT level so all server middleware versions accept OPD check-ins
           },
@@ -216,7 +217,7 @@ export async function loginDoctor(req, res, next) {
           success: true,
           token,
           user: {
-            id: 'reception-staff-session',
+            id: 'a0000000-0000-4000-8000-000000000001',
             name: 'Front Desk / Reception',
             email: 'reception@neuroharmony.in',
             role: 'RECEPTIONIST'
@@ -228,10 +229,20 @@ export async function loginDoctor(req, res, next) {
     // Check for Doctor login credentials
     if (cleanEmail === 'doctor@neuroharmony.in' || cleanEmail === 'doctor') {
       if (password === 'doctor123' || password === 'doctor') {
+        let doctorUser = null;
+        try {
+          doctorUser = await prisma.user.findFirst({
+            where: { email: { in: ['doctor@neuroharmony.in', cleanEmail] } }
+          });
+        } catch (e) {
+          console.warn('DB lookup for doctor notice:', e.message);
+        }
+
+        const doctorId = doctorUser ? doctorUser.id : 'd8cc3415-85ca-47c2-90b7-4c1a3b08a127';
         const secret = process.env.JWT_ACCESS_SECRET || 'jwt_access_secret_neuro_harmony';
         const token = jwt.sign(
           {
-            id: 'doc-session-dr-priyadarshi',
+            id: doctorId,
             email: 'doctor@neuroharmony.in',
             role: 'DOCTOR'
           },
@@ -242,8 +253,8 @@ export async function loginDoctor(req, res, next) {
           success: true,
           token,
           user: {
-            id: 'doc-session-dr-priyadarshi',
-            name: 'Dr. Priyadarshi Srivastava',
+            id: doctorId,
+            name: doctorUser ? `${doctorUser.firstName} ${doctorUser.lastName}` : 'Dr. Priyadarshi Srivastava',
             email: 'doctor@neuroharmony.in',
             role: 'DOCTOR'
           }
@@ -260,15 +271,16 @@ export async function loginDoctor(req, res, next) {
       console.warn('Prisma database lookup notice:', dbErr.message);
       if (cleanEmail.includes('doctor') && (password === 'doctor123' || password === 'doctor')) {
         const secret = process.env.JWT_ACCESS_SECRET || 'jwt_access_secret_neuro_harmony';
+        const doctorId = 'd8cc3415-85ca-47c2-90b7-4c1a3b08a127';
         const token = jwt.sign(
-          { id: 'doc-session-dr-priyadarshi', email: cleanEmail, role: 'DOCTOR' },
+          { id: doctorId, email: cleanEmail, role: 'DOCTOR' },
           secret,
           { expiresIn: '24h' }
         );
         return res.status(200).json({
           success: true,
           token,
-          user: { id: 'doc-session-dr-priyadarshi', name: 'Dr. Priyadarshi Srivastava', email: cleanEmail, role: 'DOCTOR' }
+          user: { id: doctorId, name: 'Dr. Priyadarshi Srivastava', email: cleanEmail, role: 'DOCTOR' }
         });
       }
       return res.status(500).json({

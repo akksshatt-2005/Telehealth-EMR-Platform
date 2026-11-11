@@ -307,3 +307,4 @@ seedClinicalRecords().catch(err => {
   console.error('Fatal error in seed:', err);
   process.exit(1);
 });
+

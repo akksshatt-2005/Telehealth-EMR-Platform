@@ -1,7 +1,27 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { markQueuePatientCompletedInMemory } from './opdQueueController.js';
 
 const prisma = new PrismaClient();
+
+async function resolveDoctorProfile(req) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(req?.user?.id || ''));
+  if (isUuid) {
+    try {
+      const profile = await prisma.doctorProfile.findUnique({
+        where: { userId: req.user.id }
+      });
+      if (profile) return profile;
+    } catch (e) {
+      console.warn('resolveDoctorProfile findUnique notice:', e.message);
+    }
+  }
+  try {
+    return await prisma.doctorProfile.findFirst();
+  } catch (e) {
+    return null;
+  }
+}
 
 const DEFAULT_OFFLINE_PRESCRIPTIONS = [
   {
@@ -293,9 +313,7 @@ export async function createOfflinePrescription(req, res) {
   }
 
   try {
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId: req.user.id }
-    });
+    const doctorProfile = await resolveDoctorProfile(req);
 
     if (!doctorProfile) {
       return res.status(404).json({
@@ -590,23 +608,14 @@ export async function getOfflinePrescriptions(req, res) {
   await ensurePrivateNotesColumn();
 
   try {
-    let doctorProfile = null;
-    if (req.user.role === 'DOCTOR') {
-      doctorProfile = await prisma.doctorProfile.findUnique({
-        where: { userId: req.user.id }
-      });
-    }
-
-    if (!doctorProfile) {
-      doctorProfile = await prisma.doctorProfile.findFirst();
-    }
+    const doctorProfile = await resolveDoctorProfile(req);
 
     let prescriptions = [];
     try {
       const rawRows = await prisma.$queryRawUnsafe(`
         SELECT * FROM "offline_prescriptions"
         ${doctorProfile ? 'WHERE "doctor_id" = $1::uuid' : ''}
-        ORDER BY "created_at" DESC;
+        ORDER BY COALESCE("consult_date", "created_at") DESC, "created_at" DESC;
       `, ...(doctorProfile ? [doctorProfile.id] : []));
 
       prescriptions = rawRows.map(rx => ({
@@ -642,7 +651,10 @@ export async function getOfflinePrescriptions(req, res) {
       console.warn('Raw fetch for offline_prescriptions notice, using prisma findMany:', rawErr.message);
       const prismaRxs = await prisma.offlinePrescription.findMany({
         where: doctorProfile ? { doctorId: doctorProfile.id } : {},
-        orderBy: { createdAt: 'desc' }
+        orderBy: [
+          { consultDate: 'desc' },
+          { createdAt: 'desc' }
+        ]
       });
       prescriptions = prismaRxs.map(rx => ({
         ...rx,
@@ -655,15 +667,33 @@ export async function getOfflinePrescriptions(req, res) {
       prescriptions = inMemoryPrescriptions;
     }
 
+    // Always ensure newest first (descending by consultDate/createdAt, then by reference serial)
+    prescriptions.sort((a, b) => {
+      const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
+      const dateB = new Date(b.consultDate || b.consult_date || b.createdAt || b.created_at || 0).getTime();
+      if (dateB !== dateA) return dateB - dateA;
+      const refA = parseInt(String(a.referenceId || a.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+      const refB = parseInt(String(b.referenceId || b.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+      return refB - refA;
+    });
+
     return res.status(200).json({
       success: true,
       prescriptions
     });
   } catch (error) {
     console.warn('Database offline, serving memory prescriptions fallback:', error.message);
+    const sortedFallback = [...inMemoryPrescriptions].sort((a, b) => {
+      const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
+      const dateB = new Date(b.consultDate || b.consult_date || b.createdAt || b.created_at || 0).getTime();
+      if (dateB !== dateA) return dateB - dateA;
+      const refA = parseInt(String(a.referenceId || a.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+      const refB = parseInt(String(b.referenceId || b.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+      return refB - refA;
+    });
     return res.status(200).json({
       success: true,
-      prescriptions: inMemoryPrescriptions
+      prescriptions: sortedFallback
     });
   }
 }
@@ -675,9 +705,7 @@ export async function deleteOfflinePrescription(req, res) {
   const { id } = req.params;
 
   try {
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId: req.user.id }
-    });
+    const doctorProfile = await resolveDoctorProfile(req);
 
     if (!doctorProfile) {
       return res.status(404).json({
@@ -727,9 +755,7 @@ export async function deleteOfflinePrescription(req, res) {
  */
 export async function getNextReferenceId(req, res) {
   try {
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId: req.user.id }
-    });
+    const doctorProfile = await resolveDoctorProfile(req);
 
     if (!doctorProfile) {
       return res.status(404).json({

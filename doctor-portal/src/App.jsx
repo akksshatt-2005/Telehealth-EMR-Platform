@@ -2079,6 +2079,14 @@ export default function App() {
             ...SAMPLE_OFFLINE_PRESCRIPTIONS
           ];
           const cleanList = deduplicatePrescriptions(combined);
+          cleanList.sort((a, b) => {
+            const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
+            const dateB = new Date(b.consultDate || b.consult_date || b.createdAt || b.created_at || 0).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            const refA = parseInt(String(a.referenceId || a.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+            const refB = parseInt(String(b.referenceId || b.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+            return refB - refA;
+          });
 
           try {
             localStorage.setItem('cached_offline_prescriptions', JSON.stringify(cleanList));
@@ -2544,6 +2552,14 @@ export default function App() {
       });
 
       const updated = deduplicatePrescriptions([newRx, ...filtered]);
+      updated.sort((a, b) => {
+        const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
+        const dateB = new Date(b.consultDate || b.consult_date || b.createdAt || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        const refA = parseInt(String(a.referenceId || a.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+        const refB = parseInt(String(b.referenceId || b.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+        return refB - refA;
+      });
       try {
         localStorage.setItem('cached_offline_prescriptions', JSON.stringify(updated));
       } catch (e) {}
@@ -3860,7 +3876,7 @@ export default function App() {
         
         if (isDoc || isRec) {
           const dummyUser = {
-            id: isRec ? 'reception-local-session' : 'doc-local-session',
+            id: isRec ? 'a0000000-0000-4000-8000-000000000001' : 'd8cc3415-85ca-47c2-90b7-4c1a3b08a127',
             name: isRec ? 'Front Desk / Reception' : 'Dr. Priyadarshi Srivastava',
             email: email || (isRec ? 'reception@neuroharmony.in' : 'doctor@neuroharmony.in'),
             role: isRec ? 'RECEPTIONIST' : 'DOCTOR'
@@ -3880,7 +3896,7 @@ export default function App() {
       const cleanEmail = email.trim().toLowerCase();
       if (cleanEmail === 'reception@neuroharmony.in' || cleanEmail === 'reception' || loginRole === 'RECEPTIONIST') {
         const dummyUser = {
-          id: 'reception-local-session',
+          id: 'a0000000-0000-4000-8000-000000000001',
           name: 'Front Desk / Reception',
           email: email || 'reception@neuroharmony.in',
           role: 'RECEPTIONIST'
@@ -3897,7 +3913,7 @@ export default function App() {
       const isDoctorCreds = (cleanEmail === 'doctor@neuroharmony.in' || !cleanEmail) && (password === 'doctor123' || !password.trim());
       if (isDoctorCreds || cleanEmail.includes('doctor') || loginRole === 'DOCTOR') {
         const dummyUser = {
-          id: 'doc-local-session',
+          id: 'd8cc3415-85ca-47c2-90b7-4c1a3b08a127',
           name: 'Dr. Priyadarshi Srivastava',
           email: email || 'doctor@neuroharmony.in',
           role: 'DOCTOR'
@@ -4976,6 +4992,14 @@ export default function App() {
 
                     <div className="rx-queue-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                       {deduplicatePrescriptions(offlineRxList)
+                        .sort((a, b) => {
+                          const dateA = new Date(a.consultDate || a.consult_date || a.createdAt || a.created_at || 0).getTime();
+                          const dateB = new Date(b.consultDate || b.consult_date || b.createdAt || b.created_at || 0).getTime();
+                          if (dateB !== dateA) return dateB - dateA;
+                          const refA = parseInt(String(a.referenceId || a.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+                          const refB = parseInt(String(b.referenceId || b.reference_id || '').replace(/^ref-?/i, '').split('/')[0], 10) || 0;
+                          return refB - refA;
+                        })
                         .filter(r => {
                           if (!rxSidebarSearch.trim()) return true;
                           const q = rxSidebarSearch.toLowerCase();
