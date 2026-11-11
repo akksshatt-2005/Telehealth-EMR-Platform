@@ -13,6 +13,27 @@ const DEFAULT_OPD_QUEUE = [
 
 let inMemoryOpdQueue = [...DEFAULT_OPD_QUEUE];
 
+/**
+ * Mark a patient in the in-memory OPD queue as COMPLETED based on referenceId or patientName.
+ */
+export function markQueuePatientCompletedInMemory({ referenceId, patientName }) {
+  const refClean = referenceId ? String(referenceId).replace(/^ref-?/i, '').trim().toLowerCase() : '';
+  const nameClean = patientName ? String(patientName).trim().toLowerCase() : '';
+  let updatedItem = null;
+
+  inMemoryOpdQueue = inMemoryOpdQueue.map(item => {
+    const itemRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+    const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
+    if ((refClean && itemRef && refClean === itemRef) || (nameClean && itemName && nameClean === itemName)) {
+      updatedItem = { ...item, status: 'COMPLETED' };
+      return updatedItem;
+    }
+    return item;
+  });
+
+  return updatedItem;
+}
+
 let tableChecked = false;
 export async function ensureOpdQueueTable() {
   if (tableChecked) return;

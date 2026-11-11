@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { markQueuePatientCompletedInMemory } from './opdQueueController.js';
 
 const prisma = new PrismaClient();
 
@@ -226,11 +227,28 @@ export async function createOfflinePrescription(req, res) {
     };
 
     let prescription;
+    let targetRxId = id;
+
+    // Prevent duplicate records when the doctor clicks Save or Print multiple times
+    if (!targetRxId && finalReferenceId) {
+      try {
+        const existingRx = await prisma.offlinePrescription.findFirst({
+          where: {
+            doctorId: doctorProfile.id,
+            referenceId: finalReferenceId
+          }
+        });
+        if (existingRx) {
+          targetRxId = existingRx.id;
+        }
+      } catch (findErr) {}
+    }
+
     try {
-      if (id) {
+      if (targetRxId) {
         // Update existing
         prescription = await prisma.offlinePrescription.update({
-          where: { id },
+          where: { id: targetRxId },
           data
         });
       } else {
@@ -251,9 +269,9 @@ export async function createOfflinePrescription(req, res) {
 
       try {
         // Retry with privateNotes
-        if (id) {
+        if (targetRxId) {
           prescription = await prisma.offlinePrescription.update({
-            where: { id },
+            where: { id: targetRxId },
             data
           });
         } else {
@@ -266,9 +284,9 @@ export async function createOfflinePrescription(req, res) {
         // Fallback: save without privateNotes so patient prescription is NEVER lost
         const fallbackData = { ...data };
         delete fallbackData.privateNotes;
-        if (id) {
+        if (targetRxId) {
           prescription = await prisma.offlinePrescription.update({
-            where: { id },
+            where: { id: targetRxId },
             data: fallbackData
           });
         } else {
@@ -342,6 +360,24 @@ export async function createOfflinePrescription(req, res) {
       }
     }
 
+    // Auto-mark any matching patient in OPD Queue as COMPLETED
+    if (finalReferenceId || patientName) {
+      try {
+        const cleanRefPattern = finalReferenceId ? `%${finalReferenceId.replace(/^ref-?/i, '').trim()}%` : '%';
+        const cleanNamePattern = patientName ? `%${patientName.trim()}%` : '%';
+        await prisma.$executeRawUnsafe(`
+          UPDATE "opd_queue"
+          SET "status" = 'COMPLETED', "updated_at" = NOW()
+          WHERE "reference_id" ILIKE $1 OR "patient_name" ILIKE $2;
+        `, cleanRefPattern, cleanNamePattern);
+      } catch (qDbErr) {
+        // Fallback to in-memory queue update if DB is offline
+      }
+      try {
+        markQueuePatientCompletedInMemory({ referenceId: finalReferenceId, patientName });
+      } catch (e) {}
+    }
+
     return res.status(200).json({
       success: true,
       prescription
@@ -349,8 +385,22 @@ export async function createOfflinePrescription(req, res) {
   } catch (error) {
     console.warn('Database offline, saving prescription in memory fallback:', error.message);
     const cleanRef = referenceId ? referenceId.trim() : `REF-${Math.floor(Math.random() * 900 + 100)}/2026`;
+    const cleanRefNum = cleanRef.replace(/^ref-?/i, '').trim();
+
+    // Prevent duplicate records in memory fallback by finding existing record with matching ID or reference ID
+    const existingIndex = inMemoryPrescriptions.findIndex(r => {
+      if (id && r.id === id) return true;
+      const rRef = String(r.referenceId || '').replace(/^ref-?/i, '').trim();
+      return cleanRefNum && rRef && cleanRefNum === rRef;
+    });
+
+    const targetId = (existingIndex !== -1) ? inMemoryPrescriptions[existingIndex].id : (id || `rx-local-${Date.now()}`);
+    const existingCreated = (existingIndex !== -1 && inMemoryPrescriptions[existingIndex].createdAt) 
+      ? inMemoryPrescriptions[existingIndex].createdAt 
+      : new Date().toISOString();
+
     const newRx = {
-      id: id || `rx-local-${Date.now()}`,
+      id: targetId,
       referenceId: cleanRef,
       patientName: patientName.trim(),
       patientAge: String(patientAge),
@@ -368,10 +418,21 @@ export async function createOfflinePrescription(req, res) {
       medications: medications || [],
       privateNotes: privateNotes ? String(privateNotes).trim() : '',
       private_notes: privateNotes ? String(privateNotes).trim() : '',
-      createdAt: new Date().toISOString(),
+      createdAt: existingCreated,
       updatedAt: new Date().toISOString()
     };
-    inMemoryPrescriptions = [newRx, ...inMemoryPrescriptions.filter(r => r.id !== newRx.id)];
+
+    if (existingIndex !== -1) {
+      inMemoryPrescriptions[existingIndex] = { ...inMemoryPrescriptions[existingIndex], ...newRx };
+    } else {
+      inMemoryPrescriptions = [newRx, ...inMemoryPrescriptions.filter(r => r.id !== newRx.id)];
+    }
+
+    // Also mark in-memory queue patient completed
+    try {
+      markQueuePatientCompletedInMemory({ referenceId: cleanRef, patientName });
+    } catch (e) {}
+
     return res.status(200).json({
       success: true,
       prescription: newRx
