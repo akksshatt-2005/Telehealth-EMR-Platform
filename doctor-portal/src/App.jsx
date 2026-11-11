@@ -8533,7 +8533,7 @@ export default function App() {
               </div>
 
               {/* Scrollable Container with All Prescriptions for that Patient */}
-              <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+              <div style={{ padding: '1.5rem', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '1.75rem', minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
                 {pastVisits.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#94a3b8' }}>
                     <span style={{ fontSize: '3rem' }}>📂</span>
@@ -8555,12 +8555,16 @@ export default function App() {
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '1rem',
-                          position: 'relative'
+                          position: 'relative',
+                          minWidth: 0,
+                          maxWidth: '100%',
+                          boxSizing: 'border-box',
+                          overflow: 'hidden'
                         }}
                       >
                         {/* Visit Title Bar */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <span style={{
                               backgroundColor: '#0f766e',
                               color: '#ffffff',
@@ -8614,13 +8618,13 @@ export default function App() {
                         </div>
 
                         {/* Patient Vitals & Clinical Cards in this past Rx */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1.65fr', gap: '1rem', alignItems: 'start' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: '1rem', alignItems: 'start', minWidth: 0, width: '100%' }}>
                           {/* Left Column: Vitals, Complaints, Diagnosis */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                             {/* Vitals */}
                             <div>
                               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#be123c', textTransform: 'uppercase', marginBottom: '0.2rem' }}>VITALS</div>
-                              <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderLeft: '4px solid #e11d48', borderRadius: '6px', padding: '0.45rem 0.65rem', fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between' }}>
+                              <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderLeft: '4px solid #e11d48', borderRadius: '6px', padding: '0.45rem 0.65rem', fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
                                 <span><strong>BP:</strong> {prx.bp || '120/80'}</span>
                                 <span><strong>Pulse:</strong> {prx.pulse || '72'} bpm</span>
                                 <span><strong>Weight:</strong> {prx.weight ? `${prx.weight} kg` : '--'}</span>
@@ -8631,7 +8635,7 @@ export default function App() {
                             {prx.chiefComplaints && (
                               <div>
                                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2563eb', textTransform: 'uppercase', marginBottom: '0.2rem' }}>CHIEF COMPLAINTS</div>
-                                <div style={{ backgroundColor: '#eff6ff', border: '1.5px solid #bfdbfe', borderLeft: '4px solid #2563eb', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.8rem', color: '#1e293b', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.35 }}>
+                                <div style={{ backgroundColor: '#eff6ff', border: '1.5px solid #bfdbfe', borderLeft: '4px solid #2563eb', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.8rem', color: '#1e293b', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.35, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                   {prx.chiefComplaints}
                                 </div>
                               </div>
@@ -8640,7 +8644,7 @@ export default function App() {
                             {/* Diagnosis */}
                             <div>
                               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', marginBottom: '0.2rem' }}>DIAGNOSIS</div>
-                              <div style={{ backgroundColor: '#f0fdfa', border: '1.5px solid #99f6e4', borderLeft: '4px solid #0f766e', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.82rem', color: '#0f172a', fontWeight: 800, textTransform: 'uppercase' }}>
+                              <div style={{ backgroundColor: '#f0fdfa', border: '1.5px solid #99f6e4', borderLeft: '4px solid #0f766e', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.82rem', color: '#0f172a', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                 {prx.diagnosis || 'PANIC DISORDER'}
                               </div>
                             </div>
@@ -8649,7 +8653,7 @@ export default function App() {
                             {prx.requiredTests && (
                               <div>
                                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', marginBottom: '0.2rem' }}>TESTS REQUIRED</div>
-                                <div style={{ backgroundColor: '#fff7ed', border: '1.5px solid #fed7aa', borderLeft: '4px solid #ea580c', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.8rem', color: '#0f172a', fontWeight: 800, textTransform: 'uppercase' }}>
+                                <div style={{ backgroundColor: '#fff7ed', border: '1.5px solid #fed7aa', borderLeft: '4px solid #ea580c', borderRadius: '6px', padding: '0.5rem 0.65rem', fontSize: '0.8rem', color: '#0f172a', fontWeight: 800, textTransform: 'uppercase', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                   {prx.requiredTests}
                                 </div>
                               </div>
@@ -8657,40 +8661,46 @@ export default function App() {
                           </div>
 
                           {/* Right Column: Prescribed Medications Table */}
-                          <div style={{ border: '1.5px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                          <div style={{ border: '1.5px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                             <div style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #0f766e', padding: '0.45rem 0.75rem', fontSize: '0.76rem', fontWeight: 800, color: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span>℞ PRESCRIBED MEDICATIONS</span>
                               <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>{pMeds.length} items</span>
                             </div>
                             <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {pMeds.map((m, mIdx) => (
-                                <div key={mIdx} style={{ fontSize: '0.78rem', borderBottom: mIdx < pMeds.length - 1 ? '1px solid #f1f5f9' : 'none', paddingBottom: '0.45rem' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div style={{ fontWeight: 800, color: '#0f172a' }}>{mIdx + 1}. {m.name}</div>
-                                    <span style={{ color: '#0f766e', fontWeight: 800, fontSize: '0.74rem' }}>{m.dosage}</span>
-                                  </div>
-                                  {m.composition && (
-                                    <div style={{ color: '#dc2626', fontStyle: 'italic', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                                      ({m.composition.replace(/^\(|\)$/g, '')})
-                                    </div>
-                                  )}
-                                  <div style={{ color: '#334155', fontSize: '0.74rem', marginTop: '0.15rem', fontWeight: 600 }}>
-                                    {m.frequency}
-                                  </div>
-                                  {m.instructions && (
-                                    <div style={{ color: '#0f172a', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginTop: '0.1rem' }}>
-                                      {m.instructions}
-                                    </div>
-                                  )}
+                              {pMeds.length === 0 ? (
+                                <div style={{ padding: '1.25rem 0.75rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                  No prescribed medications recorded for this visit.
                                 </div>
-                              ))}
+                              ) : (
+                                pMeds.map((m, mIdx) => (
+                                  <div key={mIdx} style={{ fontSize: '0.78rem', borderBottom: mIdx < pMeds.length - 1 ? '1px solid #f1f5f9' : 'none', paddingBottom: '0.45rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                      <div style={{ fontWeight: 800, color: '#0f172a' }}>{mIdx + 1}. {m.name}</div>
+                                      <span style={{ color: '#0f766e', fontWeight: 800, fontSize: '0.74rem', whiteSpace: 'nowrap' }}>{m.dosage}</span>
+                                    </div>
+                                    {m.composition && (
+                                      <div style={{ color: '#dc2626', fontStyle: 'italic', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                                        ({m.composition.replace(/^\(|\)$/g, '')})
+                                      </div>
+                                    )}
+                                    <div style={{ color: '#334155', fontSize: '0.74rem', marginTop: '0.15rem', fontWeight: 600 }}>
+                                      {m.frequency}
+                                    </div>
+                                    {m.instructions && (
+                                      <div style={{ color: '#0f172a', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                                        {m.instructions}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
                             </div>
                           </div>
                         </div>
 
                         {/* General Advice and Follow-up Footer */}
                         {prx.advice && (
-                          <div style={{ backgroundColor: '#ecfdf5', border: '1.5px solid #a7f3d0', borderLeft: '4px solid #059669', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.76rem', color: '#064e3b', lineHeight: 1.4 }}>
+                          <div style={{ backgroundColor: '#ecfdf5', border: '1.5px solid #a7f3d0', borderLeft: '4px solid #059669', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.76rem', color: '#064e3b', lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                             <strong>General Advice:</strong> {prx.advice}
                             {prx.followUpDate && (
                               <span style={{ marginLeft: '1rem', color: '#047857', fontWeight: 700 }}>
@@ -8702,7 +8712,7 @@ export default function App() {
 
                         {/* Doctor's Private Notes (Only visible to doctor in history) */}
                         {prx.privateNotes && (
-                          <div style={{ backgroundColor: '#fffbeb', border: '1.5px solid #fde047', borderRadius: '6px', padding: '0.45rem 0.75rem', fontSize: '0.76rem', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div style={{ backgroundColor: '#fffbeb', border: '1.5px solid #fde047', borderRadius: '6px', padding: '0.45rem 0.75rem', fontSize: '0.76rem', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '0.4rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                             <span>🔒</span>
                             <span><strong>Doctor Private Note:</strong> {prx.privateNotes}</span>
                             <span style={{ fontSize: '0.68rem', color: '#a16207', marginLeft: 'auto', fontStyle: 'italic' }}>Confidential (Never printed on Rx)</span>
