@@ -75,6 +75,21 @@ export default function ReceptionDeskView({
     });
   }, [opdQueue, todayStr]);
 
+  // Sorted queue: Waiting & In-Consultation at TOP (newest first), Completed at BOTTOM
+  const sortedTodayQueue = useMemo(() => {
+    return [...todayQueue].sort((a, b) => {
+      const aDone = a.status === 'COMPLETED' || a.status === 'CONSULTED';
+      const bDone = b.status === 'COMPLETED' || b.status === 'CONSULTED';
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      const aToken = parseInt(a.token_number, 10) || 0;
+      const bToken = parseInt(b.token_number, 10) || 0;
+      if (!aDone && !bDone) {
+        return bToken - aToken; // newest waiting arrival at top
+      }
+      return aToken - bToken;
+    });
+  }, [todayQueue]);
+
   // Calculate next token number for today (starts fresh from 1 each day)
   const nextTokenNumber = useMemo(() => {
     const maxToken = todayQueue.reduce((max, item) => Math.max(max, parseInt(item.token_number, 10) || 0), 0);
@@ -1191,7 +1206,7 @@ export default function ReceptionDeskView({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '680px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                {todayQueue.map((item, qIdx) => {
+                {sortedTodayQueue.map((item, qIdx) => {
                   const isWaiting = item.status === 'WAITING';
                   const isInConsultation = item.status === 'IN_CONSULTATION';
                   const isCompleted = item.status === 'COMPLETED';

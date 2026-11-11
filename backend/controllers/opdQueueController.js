@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -373,9 +374,18 @@ export async function getOpdQueue(req, res) {
     });
   } catch (error) {
     console.warn('Database offline, serving memory queue fallback:', error.message);
+    const sortedMemoryQueue = [...inMemoryOpdQueue].sort((a, b) => {
+      const aDone = a.status === 'COMPLETED' || a.status === 'CONSULTED';
+      const bDone = b.status === 'COMPLETED' || b.status === 'CONSULTED';
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      const aToken = parseInt(a.token_number, 10) || 0;
+      const bToken = parseInt(b.token_number, 10) || 0;
+      if (!aDone && !bDone) return bToken - aToken;
+      return aToken - bToken;
+    });
     return res.status(200).json({
       success: true,
-      queue: inMemoryOpdQueue
+      queue: sortedMemoryQueue
     });
   }
 }

@@ -1971,30 +1971,57 @@ export default function App() {
   // Load patient from OPD Queue directly into Prescription Editor
   const startConsultationFromQueue = async (queuePatient) => {
     setDashboardView('offline-rx');
-    setOfflineForm(prev => ({
-      ...prev,
-      patientName: queuePatient.patient_name || '',
-      patientPhone: queuePatient.patient_phone || queuePatient.phone || '',
-      patientAge: queuePatient.age ? String(queuePatient.age) : (queuePatient.patient_age ? String(queuePatient.patient_age) : ''),
-      patientGender: queuePatient.gender || queuePatient.patient_gender || 'Male',
-      referenceId: queuePatient.reference_id || queuePatient.referenceId || '',
-      bp: queuePatient.bp || '120/80',
-      pulse: queuePatient.pulse || '72',
-      weight: queuePatient.weight || '68',
-      sugar: queuePatient.sugar || '',
-      chiefComplaints: queuePatient.chief_complaints || prev.chiefComplaints || '',
-      privateNotes: queuePatient.private_notes || '',
-      consultDate: getLocalDateStr(),
-      diagnosis: queuePatient.diagnosis || prev.diagnosis || '',
-      medications: prev.medications && prev.medications.length > 0 ? prev.medications : [
-        { name: 'Tab. Nexito 10mg', composition: 'Escitalopram 10mg', dosage: '1 Tab', frequency: '1-0-0 सुबह नाश्ते के बाद' },
-        { name: 'Tab. Zapiz 0.25mg', composition: 'Clonazepam 0.25mg', dosage: '0.5 Tab', frequency: '0-0-1 रात को सोने से पहले' }
-      ],
-      advice: queuePatient.advice || prev.advice || 'Breathing exercises daily. Follow up in 2 weeks.',
-      requiredTests: queuePatient.requiredTests || prev.requiredTests || 'CBC, Thyroid profile, LFT'
-    }));
-    setActiveConsultingQueueId(queuePatient.id);
-    setSelectedOfflineRxId(null);
+
+    const patientName = (queuePatient.patient_name || queuePatient.name || '').trim();
+    const patientPhone = (queuePatient.patient_phone || queuePatient.phone || '').trim();
+    const rawRef = queuePatient.reference_id || queuePatient.referenceId || '';
+    const cleanRef = String(rawRef).replace(/^ref-?/i, '').trim();
+
+    // Check if THIS SPECIFIC patient already has a prescription created today or previously
+    const existingTodayRx = (offlineRxList || []).find(rx => {
+      const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+      if (cleanRef && rxRef && cleanRef.toLowerCase() === rxRef) return true;
+      const rxName = (rx.patientName || '').trim().toLowerCase();
+      if (patientName && rxName && patientName.toLowerCase() === rxName) {
+        const rxDay = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
+        return !rxDay || rxDay === getLocalDateStr();
+      }
+      return false;
+    });
+
+    if (existingTodayRx) {
+      loadOfflinePrescription(existingTodayRx);
+      setActiveConsultingQueueId(queuePatient.id);
+    } else {
+      // BRAND NEW PATIENT or fresh consultation:
+      // Clear prescription state completely - NEVER copy previous unrelated patient's complaints/diagnosis/meds!
+      setSelectedOfflineRxId(null);
+      setOriginalConsultDate('');
+      setEditingOfflineMedIndex(null);
+      setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
+      setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
+
+      setOfflineForm({
+        referenceId: cleanRef ? (cleanRef.includes('/') ? cleanRef : `${cleanRef}/${new Date().getFullYear()}`) : '',
+        patientName: patientName,
+        patientPhone: patientPhone,
+        patientAge: queuePatient.age ? String(queuePatient.age) : (queuePatient.patient_age ? String(queuePatient.patient_age) : ''),
+        patientGender: queuePatient.gender || queuePatient.patient_gender || 'Male',
+        consultDate: getLocalDateStr(),
+        bp: queuePatient.bp || '',
+        pulse: queuePatient.pulse || '',
+        weight: queuePatient.weight || '',
+        sugar: queuePatient.sugar || '',
+        chiefComplaints: queuePatient.chief_complaints || '',
+        diagnosis: queuePatient.diagnosis || '',
+        medications: [], // Clean empty list for doctor to prescribe fresh
+        advice: queuePatient.advice || '',
+        requiredTests: queuePatient.required_tests || queuePatient.requiredTests || '',
+        followUpDate: '',
+        privateNotes: queuePatient.private_notes || ''
+      });
+      setActiveConsultingQueueId(queuePatient.id);
+    }
 
     // Update status in queue to IN_CONSULTATION locally
     setOpdQueue(prev => {
@@ -5112,18 +5139,44 @@ export default function App() {
                 {/* 2. SECTION: TODAY'S OPD QUEUE (👥) */}
                 {activeRailSection === 'queue' && (() => {
                   const queueList = deduplicateQueue((opdQueue && opdQueue.length > 0) ? opdQueue : SAMPLE_OPD_QUEUE);
-                  const waitingCount = queueList.filter(q => {
+
+                  const isPatientDone = (q) => {
                     const rawRef = q.reference_id || q.referenceId;
                     const cRef = rawRef ? String(rawRef).replace(/^ref-?/i, '').trim().toLowerCase() : '';
                     const qName = (q.patient_name || q.name || '').trim().toLowerCase();
-                    const hasRx = offlineRxList.some(r => {
+                    const hasRx = (offlineRxList || []).some(r => {
                       const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
                       if (cRef && rRef && cRef === rRef) return true;
                       const rName = (r.patientName || '').trim().toLowerCase();
                       return qName && rName && qName === rName;
                     });
-                    return q.status !== 'COMPLETED' && q.status !== 'CONSULTED' && !hasRx;
-                  }).length;
+                    return q.status === 'COMPLETED' || q.status === 'CONSULTED' || hasRx;
+                  };
+
+                  const waitingCount = queueList.filter(q => !isPatientDone(q)).length;
+
+                  // Sort queue: Waiting patients always at TOP (newest arrival first), completed patients move to BOTTOM
+                  const sortedQueueList = [...queueList].sort((a, b) => {
+                    const aDone = isPatientDone(a);
+                    const bDone = isPatientDone(b);
+
+                    // 1. Waiting patients always before consulted patients
+                    if (aDone !== bDone) return aDone ? 1 : -1;
+
+                    // 2. Active in-consultation patient at top among waiting
+                    const aCurrent = activeConsultingQueueId === a.id;
+                    const bCurrent = activeConsultingQueueId === b.id;
+                    if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+
+                    // 3. For waiting patients: newest check-in at top
+                    const aToken = parseInt(a.token_number, 10) || 0;
+                    const bToken = parseInt(b.token_number, 10) || 0;
+                    if (!aDone && !bDone) {
+                      return bToken - aToken;
+                    }
+                    // For consulted/completed: keep token order
+                    return aToken - bToken;
+                  });
 
                   return (
                     <>
@@ -5186,7 +5239,7 @@ export default function App() {
                       </div>
 
                       <div className="rx-queue-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.55rem 0.75rem' }}>
-                        {queueList.map((qPatient) => {
+                        {sortedQueueList.map((qPatient) => {
                           const tokenNum = qPatient.token_number || 1;
                           const patientName = qPatient.patient_name || qPatient.name || 'Patient';
                           const ageVal = qPatient.age || qPatient.patient_age;
