@@ -932,27 +932,23 @@ export default function App() {
   const previewScrollRef = useRef(null);
   const [previewContainerWidth, setPreviewContainerWidth] = useState(550);
   const [offlineForm, setOfflineForm] = useState({
-    referenceId: 'REF-213/2026',
-    patientName: 'Naseem',
-    patientAge: '53',
+    referenceId: '',
+    patientName: '',
+    patientAge: '',
     patientGender: 'Male',
-    patientPhone: '9876543210',
+    patientPhone: '',
     consultDate: getLocalDateStr(),
-    diagnosis: 'PANIC DISORDER WITH MILD AGORAPHOBIA',
-    chiefComplaints: 'ANXIETY , RESTLESSNESS, DYSPNEA, BODY PAINS, INTERMITTENT PANIC ATTACKS',
-    bp: '131/89',
-    pulse: '85',
-    weight: '48',
+    diagnosis: '',
+    chiefComplaints: '',
+    bp: '',
+    pulse: '',
+    weight: '',
     sugar: '',
-    medications: [
-      { name: 'EXITRACE', composition: 'FLUPENTHIXOLE', dosage: '1 MG', frequency: '0 – 0 – 1 (रात को सोने से पहले / At bedtime)' },
-      { name: 'CLONAM PRO DS', composition: 'CLONAZEPAM 0.5 MG + PROPANOLOL 20 MG', dosage: '1 TAB', frequency: 'SOS (ज़रूरत पड़ने पर / As needed)', instructions: 'FOR ANXIETY ATTACKS' },
-      { name: 'NEXITO PLUS', composition: 'ESCITALOPRAM 10 MG + CLONAZEPAM 0.5 MG', dosage: '1 TAB', frequency: '1 – 0 – 0 (सुबह नाश्ते के बाद)' }
-    ],
-    advice: 'Follow-up: Visit within 17 days (Date: 27/11/2026)',
-    requiredTests: 'CBC, Thyroid Profile',
-    followUpDate: '2026-11-27',
-    privateNotes: 'Regular follow-up. 3 previous visits on record. Response to SSRI favorable.'
+    medications: [],
+    advice: '',
+    requiredTests: '',
+    followUpDate: '',
+    privateNotes: ''
   });
 
   // Web Audio Chime for incoming Front Desk arrivals
@@ -1977,51 +1973,35 @@ export default function App() {
     const rawRef = queuePatient.reference_id || queuePatient.referenceId || '';
     const cleanRef = String(rawRef).replace(/^ref-?/i, '').trim();
 
-    // Check if THIS SPECIFIC patient already has a prescription created today or previously
-    const existingTodayRx = (offlineRxList || []).find(rx => {
-      const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
-      if (cleanRef && rxRef && cleanRef.toLowerCase() === rxRef) return true;
-      const rxName = (rx.patientName || '').trim().toLowerCase();
-      if (patientName && rxName && patientName.toLowerCase() === rxName) {
-        const rxDay = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
-        return !rxDay || rxDay === getLocalDateStr();
-      }
-      return false;
+    // ALWAYS start a fresh, clean prescription for today's consultation session!
+    // Never pre-fill previous patient's or past diagnosis/medications into today's blank canvas.
+    // Doctor can view past prescriptions anytime via the "Previous Prescriptions" button.
+    setSelectedOfflineRxId(null);
+    setOriginalConsultDate('');
+    setEditingOfflineMedIndex(null);
+    setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
+    setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
+
+    setOfflineForm({
+      referenceId: cleanRef ? (cleanRef.includes('/') ? cleanRef : `${cleanRef}/${new Date().getFullYear()}`) : '',
+      patientName: patientName,
+      patientPhone: patientPhone,
+      patientAge: queuePatient.age ? String(queuePatient.age) : (queuePatient.patient_age ? String(queuePatient.patient_age) : ''),
+      patientGender: queuePatient.gender || queuePatient.patient_gender || 'Male',
+      consultDate: getLocalDateStr(),
+      bp: queuePatient.bp || '',
+      pulse: queuePatient.pulse || '',
+      weight: queuePatient.weight || '',
+      sugar: queuePatient.sugar || '',
+      chiefComplaints: queuePatient.chief_complaints || '',
+      diagnosis: '',
+      medications: [], // Always empty for fresh consultation
+      advice: '',
+      requiredTests: queuePatient.required_tests || queuePatient.requiredTests || '',
+      followUpDate: '',
+      privateNotes: queuePatient.private_notes || ''
     });
-
-    if (existingTodayRx) {
-      loadOfflinePrescription(existingTodayRx);
-      setActiveConsultingQueueId(queuePatient.id);
-    } else {
-      // BRAND NEW PATIENT or fresh consultation:
-      // Clear prescription state completely - NEVER copy previous unrelated patient's complaints/diagnosis/meds!
-      setSelectedOfflineRxId(null);
-      setOriginalConsultDate('');
-      setEditingOfflineMedIndex(null);
-      setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
-      setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
-
-      setOfflineForm({
-        referenceId: cleanRef ? (cleanRef.includes('/') ? cleanRef : `${cleanRef}/${new Date().getFullYear()}`) : '',
-        patientName: patientName,
-        patientPhone: patientPhone,
-        patientAge: queuePatient.age ? String(queuePatient.age) : (queuePatient.patient_age ? String(queuePatient.patient_age) : ''),
-        patientGender: queuePatient.gender || queuePatient.patient_gender || 'Male',
-        consultDate: getLocalDateStr(),
-        bp: queuePatient.bp || '',
-        pulse: queuePatient.pulse || '',
-        weight: queuePatient.weight || '',
-        sugar: queuePatient.sugar || '',
-        chiefComplaints: queuePatient.chief_complaints || '',
-        diagnosis: queuePatient.diagnosis || '',
-        medications: [], // Clean empty list for doctor to prescribe fresh
-        advice: queuePatient.advice || '',
-        requiredTests: queuePatient.required_tests || queuePatient.requiredTests || '',
-        followUpDate: '',
-        privateNotes: queuePatient.private_notes || ''
-      });
-      setActiveConsultingQueueId(queuePatient.id);
-    }
+    setActiveConsultingQueueId(queuePatient.id);
 
     // Update status in queue to IN_CONSULTATION locally
     setOpdQueue(prev => {
@@ -6041,7 +6021,7 @@ export default function App() {
                     New prescription
                   </h2>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, marginTop: '0.1rem' }}>
-                    Ref {offlineForm.referenceId || '213/2026'} · {formatPrintDate(offlineForm.consultDate) || '05 Nov 2026'}
+                    Ref {offlineForm.referenceId || '---'} · {formatPrintDate(offlineForm.consultDate) || 'Today'}
                   </div>
                 </div>
 
@@ -6731,7 +6711,7 @@ export default function App() {
                         </div>
                         <div>
                           <strong style={{ color: '#64748b', fontSize: '0.75em' }}>REF</strong>
-                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.referenceId || '213/2026'}</div>
+                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.referenceId || '---'}</div>
                         </div>
                       </div>
 
@@ -6748,15 +6728,15 @@ export default function App() {
                             <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', borderLeft: '5px solid #e11d48', padding: '0.45rem 0.65rem', fontSize: '0.82em', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD PRESSURE</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp || '131/89')}</span>
+                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp) || '--'}</span>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>PULSE RATE</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse || '85')}</span>
+                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse) || '--'}</span>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>WEIGHT</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.weight ? (String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`) : '48 kg'}</span>
+                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.weight ? (String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`) : '--'}</span>
                               </div>
                               {offlineForm.sugar && String(offlineForm.sugar).trim() && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -6788,7 +6768,7 @@ export default function App() {
                               wordBreak: 'break-word',
                               boxSizing: 'border-box'
                             }}>
-                              {offlineForm.chiefComplaints ? offlineForm.chiefComplaints.toUpperCase() : 'ANXIETY , RESTLESSNESS, DYSPNEA, BODY PAINS, INTERMITTENT PANIC ATTACKS,'}
+                              {offlineForm.chiefComplaints ? offlineForm.chiefComplaints.toUpperCase() : '—'}
                             </div>
                           </div>
 
@@ -6814,7 +6794,7 @@ export default function App() {
                               wordBreak: 'break-word',
                               boxSizing: 'border-box'
                             }}>
-                              {offlineForm.diagnosis ? offlineForm.diagnosis.toUpperCase() : 'PANIC DISORDER'}
+                              {offlineForm.diagnosis ? offlineForm.diagnosis.toUpperCase() : '—'}
                             </div>
                           </div>
 
@@ -6864,7 +6844,7 @@ export default function App() {
                               wordBreak: 'break-word',
                               boxSizing: 'border-box'
                             }}>
-                              <div>{offlineForm.advice || 'Follow-up: Visit within 17 days (Date: 27/11/2026)'}</div>
+                              <div>{offlineForm.advice || '—'}</div>
                               {offlineForm.followUpDate && (
                                 <div style={{ marginTop: '0.2rem', color: '#047857', fontSize: '0.9em' }}>
                                   Next Follow-up Date: {formatPrintDate(offlineForm.followUpDate)}
@@ -8267,10 +8247,22 @@ export default function App() {
 
       {/* Floating Movable Previous Prescriptions Trigger with Notification Badge */}
       {dashboardView === 'offline-rx' && (() => {
-        const pastVisits = (offlineRxList || []).filter(r => 
-          r.patientPhone && offlineForm.patientPhone && r.patientPhone === offlineForm.patientPhone &&
-          (!r.patientName || !offlineForm.patientName || r.patientName.toLowerCase() === offlineForm.patientName.toLowerCase())
-        );
+        const cleanFormRef = (offlineForm.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+        const cleanFormName = (offlineForm.patientName || '').trim().toLowerCase();
+        const cleanFormPhone = (offlineForm.patientPhone || '').trim();
+
+        const pastVisits = (offlineRxList || []).filter(r => {
+          if (!cleanFormName && !cleanFormPhone && !cleanFormRef) return false;
+          const rRef = (r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+          const rName = (r.patientName || '').trim().toLowerCase();
+          const rPhone = (r.patientPhone || '').trim();
+
+          const matchRef = cleanFormRef && rRef && cleanFormRef === rRef;
+          const matchPhoneAndName = cleanFormPhone && rPhone && cleanFormPhone === rPhone && cleanFormName && rName && cleanFormName === rName;
+          const matchName = cleanFormName && rName && cleanFormName === rName;
+
+          return matchRef || matchPhoneAndName || matchName;
+        });
 
         return (
           <button
@@ -8342,10 +8334,22 @@ export default function App() {
           (Scrolls seamlessly to show all prescriptions of this particular patient)
           ========================================================================= */}
       {showPastVisitsModal && (() => {
-        const pastVisits = (offlineRxList || []).filter(r => 
-          r.patientPhone && offlineForm.patientPhone && r.patientPhone === offlineForm.patientPhone &&
-          (!r.patientName || !offlineForm.patientName || r.patientName.toLowerCase() === offlineForm.patientName.toLowerCase())
-        );
+        const cleanFormRef = (offlineForm.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+        const cleanFormName = (offlineForm.patientName || '').trim().toLowerCase();
+        const cleanFormPhone = (offlineForm.patientPhone || '').trim();
+
+        const pastVisits = (offlineRxList || []).filter(r => {
+          if (!cleanFormName && !cleanFormPhone && !cleanFormRef) return false;
+          const rRef = (r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+          const rName = (r.patientName || '').trim().toLowerCase();
+          const rPhone = (r.patientPhone || '').trim();
+
+          const matchRef = cleanFormRef && rRef && cleanFormRef === rRef;
+          const matchPhoneAndName = cleanFormPhone && rPhone && cleanFormPhone === rPhone && cleanFormName && rName && cleanFormName === rName;
+          const matchName = cleanFormName && rName && cleanFormName === rName;
+
+          return matchRef || matchPhoneAndName || matchName;
+        });
         const familyMembers = (offlineRxList || []).filter(r => 
           r.patientPhone && offlineForm.patientPhone && r.patientPhone === offlineForm.patientPhone &&
           r.patientName && offlineForm.patientName && r.patientName.toLowerCase() !== offlineForm.patientName.toLowerCase()
