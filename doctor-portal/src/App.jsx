@@ -2942,22 +2942,38 @@ export default function App() {
 
   // Load offline prescription into form and layout
   const loadOfflinePrescription = (rx) => {
+    if (!rx) return;
+    setDashboardView('offline-rx');
     setSelectedOfflineRxId(rx.id);
     const cDate = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : getLocalDateStr());
     setOriginalConsultDate(cDate);
+
+    let parsedMeds = [];
+    if (Array.isArray(rx.medications)) {
+      parsedMeds = rx.medications;
+    } else if (typeof rx.medications === 'string') {
+      try {
+        parsedMeds = JSON.parse(rx.medications);
+      } catch (e) {
+        console.warn('JSON parse warning in loadOfflinePrescription:', e);
+        parsedMeds = [];
+      }
+    }
+
     setOfflineForm({
       referenceId: rx.referenceId || '',
-      patientName: rx.patientName,
-      patientAge: rx.patientAge,
-      patientGender: rx.patientGender,
+      patientName: rx.patientName || '',
+      patientAge: rx.patientAge ? String(rx.patientAge) : '',
+      patientGender: rx.patientGender || 'Male',
       patientPhone: rx.patientPhone || '',
       consultDate: cDate,
-      diagnosis: rx.diagnosis,
+      diagnosis: rx.diagnosis || '',
       chiefComplaints: rx.chiefComplaints || '',
       bp: rx.bp || '',
       pulse: rx.pulse || '',
       weight: rx.weight || '',
-      medications: (typeof rx.medications === 'string' ? JSON.parse(rx.medications) : rx.medications) || [],
+      sugar: rx.sugar || '',
+      medications: parsedMeds,
       advice: rx.advice || '',
       requiredTests: rx.requiredTests || '',
       followUpDate: rx.followUpDate ? rx.followUpDate.split('T')[0] : '',
@@ -5406,24 +5422,31 @@ export default function App() {
                                   {matchingRx ? (
                                     <button
                                       type="button"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         loadOfflinePrescription(matchingRx);
+                                        closeSidebar();
+                                        setQueueNavToast(`📄 Loaded prescription for ${matchingRx.patientName || patientName} (Ref: ${matchingRx.referenceId || refStr})`);
+                                        setTimeout(() => setQueueNavToast(null), 3500);
                                       }}
                                       title="Open this patient's completed prescription"
                                       style={{
                                         backgroundColor: '#ffffff',
-                                        border: '1px solid #10b981',
-                                        borderRadius: '4px',
-                                        padding: '0.18rem 0.45rem',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 700,
-                                        color: '#065f46',
+                                        border: '1.5px solid #0f766e',
+                                        borderRadius: '5px',
+                                        padding: '0.22rem 0.55rem',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 800,
+                                        color: '#0f766e',
                                         cursor: 'pointer',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '0.2rem',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                        gap: '0.25rem',
+                                        boxShadow: '0 1px 3px rgba(15,118,110,0.12)',
+                                        transition: 'all 0.15s ease'
                                       }}
+                                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#0f766e'; e.currentTarget.style.color = '#ffffff'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.color = '#0f766e'; }}
                                     >
                                       <span>📄</span>
                                       <span>View Rx</span>
