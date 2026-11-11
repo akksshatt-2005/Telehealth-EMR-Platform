@@ -254,7 +254,7 @@ export async function loginDoctor(req, res, next) {
           token,
           user: {
             id: doctorId,
-            name: doctorUser ? `${doctorUser.firstName} ${doctorUser.lastName}` : 'Dr. Priyadarshi Srivastava',
+            name: doctorUser?.name || 'Dr. Priyadarshi Srivastava',
             email: 'doctor@neuroharmony.in',
             role: 'DOCTOR'
           }

@@ -483,7 +483,15 @@ export default function App() {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('doc_user');
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.name || parsed.name.includes('undefined')) {
+          parsed.name = parsed.role === 'RECEPTIONIST' ? 'Front Desk / Reception' : 'Dr. Priyadarshi Srivastava';
+          try { localStorage.setItem('doc_user', JSON.stringify(parsed)); } catch (e) {}
+        }
+        return parsed;
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -4654,7 +4662,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
 
           <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
-            {user?.name || 'Dr. Priyadarshi Srivastava'}
+            {(!user?.name || user.name.includes('undefined')) ? 'Dr. Priyadarshi Srivastava' : user.name}
           </div>
           <button 
             type="button"
@@ -6720,83 +6728,100 @@ export default function App() {
                         {/* Left Section Exactly Matching User Reference Mockup */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: `${Math.round((offlineLayout.rowSpacing || 12) * 0.65)}px` }}>
                           
-                          {/* 1. VITALS */}
-                          <div>
-                            <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#be123c', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
-                              VITALS
+                          {/* 1. VITALS - only shown if at least one vital is recorded */}
+                          {Boolean(
+                            (offlineForm.bp && String(offlineForm.bp).trim()) ||
+                            (offlineForm.pulse && String(offlineForm.pulse).trim()) ||
+                            (offlineForm.weight && String(offlineForm.weight).trim()) ||
+                            (offlineForm.sugar && String(offlineForm.sugar).trim())
+                          ) && (
+                            <div>
+                              <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#be123c', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+                                VITALS
+                              </div>
+                              <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', borderLeft: '5px solid #e11d48', padding: '0.45rem 0.65rem', fontSize: '0.82em', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                {offlineForm.bp && String(offlineForm.bp).trim() && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD PRESSURE</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp)}</span>
+                                  </div>
+                                )}
+                                {offlineForm.pulse && String(offlineForm.pulse).trim() && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>PULSE RATE</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse)}</span>
+                                  </div>
+                                )}
+                                {offlineForm.weight && String(offlineForm.weight).trim() && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>WEIGHT</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`}</span>
+                                  </div>
+                                )}
+                                {offlineForm.sugar && String(offlineForm.sugar).trim() && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD SUGAR</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{String(offlineForm.sugar).includes('mg') ? offlineForm.sugar : `${offlineForm.sugar} mg/dL`}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', borderLeft: '5px solid #e11d48', padding: '0.45rem 0.65rem', fontSize: '0.82em', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD PRESSURE</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp) || '--'}</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>PULSE RATE</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse) || '--'}</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>WEIGHT</span>
-                                <span style={{ fontWeight: 800, color: '#0f172a' }}>{offlineForm.weight ? (String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`) : '--'}</span>
-                              </div>
-                              {offlineForm.sugar && String(offlineForm.sugar).trim() && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD SUGAR</span>
-                                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{String(offlineForm.sugar).includes('mg') ? offlineForm.sugar : `${offlineForm.sugar} mg/dL`}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          )}
 
-                          {/* 2. CHIEF COMPLAINTS */}
-                          <div>
-                            <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#2563eb', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
-                              CHIEF COMPLAINTS
+                          {/* 2. CHIEF COMPLAINTS - only shown when entered */}
+                          {offlineForm.chiefComplaints && String(offlineForm.chiefComplaints).trim() ? (
+                            <div>
+                              <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#2563eb', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+                                CHIEF COMPLAINTS
+                              </div>
+                              <div style={{ 
+                                backgroundColor: '#eff6ff', 
+                                border: '1.5px solid #bfdbfe', 
+                                borderRadius: '8px', 
+                                borderLeft: '5px solid #2563eb', 
+                                padding: '0.5rem 0.7rem', 
+                                fontSize: '0.90em', 
+                                color: '#0f172a', 
+                                fontWeight: 800, 
+                                textTransform: 'uppercase', 
+                                lineHeight: 1.4, 
+                                letterSpacing: '0.01em', 
+                                minHeight: '36px',
+                                wordBreak: 'break-word',
+                                boxSizing: 'border-box'
+                              }}>
+                                {offlineForm.chiefComplaints.toUpperCase()}
+                              </div>
                             </div>
-                            <div style={{ 
-                              backgroundColor: '#eff6ff', 
-                              border: '1.5px solid #bfdbfe', 
-                              borderRadius: '8px', 
-                              borderLeft: '5px solid #2563eb', 
-                              padding: '0.5rem 0.7rem', 
-                              fontSize: '0.90em', 
-                              color: '#0f172a', 
-                              fontWeight: 800, 
-                              textTransform: 'uppercase', 
-                              lineHeight: 1.4, 
-                              letterSpacing: '0.01em', 
-                              minHeight: '42px',
-                              wordBreak: 'break-word',
-                              boxSizing: 'border-box'
-                            }}>
-                              {offlineForm.chiefComplaints ? offlineForm.chiefComplaints.toUpperCase() : '—'}
-                            </div>
-                          </div>
+                          ) : null}
 
-                          {/* 3. DIAGNOSIS */}
-                          <div>
-                            <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#0f766e', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
-                              DIAGNOSIS
+                          {/* 3. DIAGNOSIS - only shown when entered */}
+                          {offlineForm.diagnosis && String(offlineForm.diagnosis).trim() ? (
+                            <div>
+                              <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#0f766e', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+                                DIAGNOSIS
+                              </div>
+                              <div style={{ 
+                                backgroundColor: '#f0fdfa', 
+                                border: '1.5px solid #99f6e4', 
+                                borderRadius: '8px', 
+                                borderLeft: '5px solid #0f766e', 
+                                padding: '0.5rem 0.7rem', 
+                                fontSize: '0.90em', 
+                                color: '#0f172a', 
+                                fontWeight: 800, 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '0.02em', 
+                                minHeight: '36px', 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                wordBreak: 'break-word',
+                                boxSizing: 'border-box'
+                              }}>
+                                {offlineForm.diagnosis.toUpperCase()}
+                              </div>
                             </div>
-                            <div style={{ 
-                              backgroundColor: '#f0fdfa', 
-                              border: '1.5px solid #99f6e4', 
-                              borderRadius: '8px', 
-                              borderLeft: '5px solid #0f766e', 
-                              padding: '0.5rem 0.7rem', 
-                              fontSize: '0.90em', 
-                              color: '#0f172a', 
-                              fontWeight: 800, 
-                              textTransform: 'uppercase', 
-                              letterSpacing: '0.02em', 
-                              minHeight: '42px', 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              wordBreak: 'break-word',
-                              boxSizing: 'border-box'
-                            }}>
-                              {offlineForm.diagnosis ? offlineForm.diagnosis.toUpperCase() : '—'}
-                            </div>
-                          </div>
+                          ) : null}
 
                           {/* 4. TESTS REQUIRED (Dedicated Section as in Reference Mockup) */}
                           {offlineForm.requiredTests && String(offlineForm.requiredTests).trim() ? (
@@ -6816,7 +6841,7 @@ export default function App() {
                                 textTransform: 'uppercase', 
                                 lineHeight: 1.4, 
                                 letterSpacing: '0.01em', 
-                                minHeight: '42px', 
+                                minHeight: '36px', 
                                 wordBreak: 'break-word', 
                                 boxSizing: 'border-box' 
                               }}>
@@ -6825,33 +6850,37 @@ export default function App() {
                             </div>
                           ) : null}
 
-                          {/* 5. GENERAL ADVICE */}
-                          <div>
-                            <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#059669', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
-                              GENERAL ADVICE
+                          {/* 5. GENERAL ADVICE - only shown when entered */}
+                          {((offlineForm.advice && String(offlineForm.advice).trim()) || offlineForm.followUpDate) ? (
+                            <div>
+                              <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#059669', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+                                GENERAL ADVICE
+                              </div>
+                              <div style={{ 
+                                backgroundColor: '#ecfdf5', 
+                                border: '1.5px solid #a7f3d0', 
+                                borderRadius: '8px', 
+                                borderLeft: '5px solid #059669', 
+                                padding: '0.5rem 0.7rem', 
+                                fontSize: '0.86em', 
+                                color: '#064e3b', 
+                                fontWeight: 700, 
+                                lineHeight: 1.45,
+                                minHeight: '36px',
+                                wordBreak: 'break-word',
+                                boxSizing: 'border-box'
+                              }}>
+                                {offlineForm.advice && String(offlineForm.advice).trim() && (
+                                  <div>{offlineForm.advice}</div>
+                                )}
+                                {offlineForm.followUpDate && (
+                                  <div style={{ marginTop: '0.2rem', color: '#047857', fontSize: '0.9em' }}>
+                                    Next Follow-up Date: {formatPrintDate(offlineForm.followUpDate)}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ 
-                              backgroundColor: '#ecfdf5', 
-                              border: '1.5px solid #a7f3d0', 
-                              borderRadius: '8px', 
-                              borderLeft: '5px solid #059669', 
-                              padding: '0.5rem 0.7rem', 
-                              fontSize: '0.86em', 
-                              color: '#064e3b', 
-                              fontWeight: 700, 
-                              lineHeight: 1.45,
-                              minHeight: '42px',
-                              wordBreak: 'break-word',
-                              boxSizing: 'border-box'
-                            }}>
-                              <div>{offlineForm.advice || '—'}</div>
-                              {offlineForm.followUpDate && (
-                                <div style={{ marginTop: '0.2rem', color: '#047857', fontSize: '0.9em' }}>
-                                  Next Follow-up Date: {formatPrintDate(offlineForm.followUpDate)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          ) : null}
 
                           {/* 6. OFFICIAL SIGNATURE LOGO (Mapped to Layout Settings) */}
                           {offlineLayout.showSignature && (
