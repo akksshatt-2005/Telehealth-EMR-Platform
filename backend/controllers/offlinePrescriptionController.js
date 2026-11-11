@@ -387,25 +387,7 @@ export async function createOfflinePrescription(req, res) {
     let prescription;
     let targetRxId = id;
 
-    // Prevent duplicate records when the doctor clicks Save or Print multiple times on the SAME visit
-    if (!targetRxId && finalReferenceId) {
-      try {
-        const existingRx = await prisma.offlinePrescription.findFirst({
-          where: {
-            doctorId: doctorProfile.id,
-            referenceId: finalReferenceId
-          }
-        });
-        if (existingRx) {
-          const incomingDay = consultDate ? new Date(consultDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-          const existingDay = existingRx.consultDate ? new Date(existingRx.consultDate).toISOString().split('T')[0] : (existingRx.createdAt ? new Date(existingRx.createdAt).toISOString().split('T')[0] : '');
-          if (existingDay && existingDay === incomingDay) {
-            targetRxId = existingRx.id;
-          }
-        }
-      } catch (findErr) {}
-    }
-
+    // Only update if explicit id was provided; otherwise, each consultation is a distinct prescription
     try {
       if (targetRxId) {
         // Update existing
@@ -522,20 +504,28 @@ export async function createOfflinePrescription(req, res) {
       }
     }
 
-    // Auto-mark ONLY the actively consulted patient in OPD Queue as COMPLETED
+    // Auto-mark ONLY the actively consulted patient in OPD Queue as COMPLETED and link its prescription ID
     if (queuePatientId) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(queuePatientId));
       if (isUuid) {
         try {
           await prisma.$executeRawUnsafe(`
             UPDATE "opd_queue"
-            SET "status" = 'COMPLETED', "updated_at" = NOW()
+            SET "status" = 'COMPLETED', "updated_at" = NOW(), "prescription_id" = $2
             WHERE "id" = $1::uuid;
-          `, queuePatientId);
-        } catch (qDbErr) {}
+          `, queuePatientId, prescription.id);
+        } catch (qDbErr) {
+          try {
+            await prisma.$executeRawUnsafe(`
+              UPDATE "opd_queue"
+              SET "status" = 'COMPLETED', "updated_at" = NOW()
+              WHERE "id" = $1::uuid;
+            `, queuePatientId);
+          } catch (e) {}
+        }
       }
       try {
-        markQueuePatientCompletedInMemory({ queueId: queuePatientId });
+        markQueuePatientCompletedInMemory({ queueId: queuePatientId, prescriptionId: prescription.id });
       } catch (e) {}
     } else if (finalReferenceId || patientName) {
       try {
@@ -544,7 +534,7 @@ export async function createOfflinePrescription(req, res) {
         // Only mark the single earliest WAITING token so future follow-up tokens stay waiting
         await prisma.$executeRawUnsafe(`
           UPDATE "opd_queue"
-          SET "status" = 'COMPLETED', "updated_at" = NOW()
+          SET "status" = 'COMPLETED', "updated_at" = NOW(), "prescription_id" = $3
           WHERE "id" = (
             SELECT "id" FROM "opd_queue"
             WHERE "status" = 'WAITING'
@@ -552,12 +542,24 @@ export async function createOfflinePrescription(req, res) {
             ORDER BY "token_number" ASC
             LIMIT 1
           );
-        `, cleanRefPattern, cleanNamePattern);
+        `, cleanRefPattern, cleanNamePattern, prescription.id);
       } catch (qDbErr) {
-        // Fallback to in-memory queue update if DB is offline
+        try {
+          await prisma.$executeRawUnsafe(`
+            UPDATE "opd_queue"
+            SET "status" = 'COMPLETED', "updated_at" = NOW()
+            WHERE "id" = (
+              SELECT "id" FROM "opd_queue"
+              WHERE "status" = 'WAITING'
+                AND ("reference_id" ILIKE $1 OR "patient_name" ILIKE $2)
+              ORDER BY "token_number" ASC
+              LIMIT 1
+            );
+          `, cleanRefPattern, cleanNamePattern);
+        } catch (e2) {}
       }
       try {
-        markQueuePatientCompletedInMemory({ referenceId: finalReferenceId, patientName });
+        markQueuePatientCompletedInMemory({ referenceId: finalReferenceId, patientName, prescriptionId: prescription.id });
       } catch (e) {}
     }
 
@@ -574,14 +576,8 @@ export async function createOfflinePrescription(req, res) {
     const cleanRef = referenceId ? referenceId.trim() : `REF-${Math.floor(Math.random() * 900 + 100)}/2026`;
     const cleanRefNum = cleanRef.replace(/^ref-?/i, '').trim();
 
-    // Prevent duplicate records in memory fallback by finding existing record with matching ID or reference ID on the same visit date
-    const incomingDay = consultDate ? String(consultDate).split('T')[0] : new Date().toISOString().split('T')[0];
-    const existingIndex = inMemoryPrescriptions.findIndex(r => {
-      if (id && r.id === id) return true;
-      const rRef = String(r.referenceId || '').replace(/^ref-?/i, '').trim();
-      const rDay = r.consultDate ? String(r.consultDate).split('T')[0] : (r.createdAt ? String(r.createdAt).split('T')[0] : '');
-      return cleanRefNum && rRef && cleanRefNum === rRef && (!rDay || rDay === incomingDay);
-    });
+    // In memory fallback, only update if explicit ID was provided
+    const existingIndex = id ? inMemoryPrescriptions.findIndex(r => r.id === id) : -1;
 
     const targetId = (existingIndex !== -1) ? inMemoryPrescriptions[existingIndex].id : (id || `rx-local-${Date.now()}`);
     const existingCreated = (existingIndex !== -1 && inMemoryPrescriptions[existingIndex].createdAt) 

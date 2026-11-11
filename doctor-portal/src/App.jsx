@@ -67,21 +67,8 @@ const deduplicatePrescriptions = (list) => {
   const seen = new Set();
   return list.filter(item => {
     if (!item) return false;
-    const cleanRef = item.referenceId ? String(item.referenceId).trim().replace(/^ref-?/i, '').toUpperCase() : '';
-    const consultDay = item.consultDate ? item.consultDate.split('T')[0] : (item.createdAt ? item.createdAt.split('T')[0] : '');
-    const cleanName = (item.patientName || '').trim().toLowerCase();
-
-    // Deduplicate primarily by (referenceId + consultDay) or (patientName + consultDay)
-    // This prevents double-clicking Save/Print (e.g. Naseem Ref 213/2026) from creating duplicate visible cards
-    let key;
-    if (cleanRef) {
-      key = `ref_${cleanRef}_${consultDay}`;
-    } else if (cleanName && consultDay) {
-      key = `name_${cleanName}_${consultDay}`;
-    } else {
-      key = item.id || `unknown_${Math.random()}`;
-    }
-
+    // Deduplicate strictly by prescription ID so multiple visits for the same patient/reference ID are never lost
+    const key = item.id ? String(item.id) : `rx_${item.referenceId || ''}_${item.consultDate || ''}_${item.patientName || ''}_${item.createdAt || ''}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -485,7 +472,7 @@ export default function App() {
       const saved = localStorage.getItem('doc_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.name || parsed.name.includes('undefined')) {
+        if (!parsed.name || String(parsed.name).toLowerCase().includes('undefined') || String(parsed.name).toLowerCase().includes('null')) {
           parsed.name = parsed.role === 'RECEPTIONIST' ? 'Front Desk / Reception' : 'Dr. Priyadarshi Srivastava';
           try { localStorage.setItem('doc_user', JSON.stringify(parsed)); } catch (e) {}
         }
@@ -2538,22 +2525,10 @@ export default function App() {
     let targetRxId = rxData.id;
 
     setOfflineRxList(prev => {
-      // Find if matching prescription already exists by ID or (referenceId + consultDate)
-      const existing = prev.find(r => {
-        if (targetRxId && r.id === targetRxId) return true;
-        if (!isNewVisit) {
-          const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim();
-          const rDay = r.consultDate ? r.consultDate.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
-          if (cleanRefNum && rRef && cleanRefNum === rRef && (!rDay || rDay === consultDay)) {
-            return true;
-          }
-        }
-        return false;
-      });
+      // Find if matching prescription already exists by explicit ID
+      const existing = (targetRxId && !isNewVisit) ? prev.find(r => r.id === targetRxId) : null;
 
-      if (existing && !isNewVisit) {
-        targetRxId = existing.id;
-      } else if (!targetRxId) {
+      if (!targetRxId || isNewVisit) {
         targetRxId = `rx-local-${Date.now()}`;
       }
 
@@ -2566,17 +2541,7 @@ export default function App() {
         updatedAt: new Date().toISOString()
       };
 
-      const filtered = prev.filter(r => {
-        if (r.id === targetRxId) return false;
-        if (!isNewVisit) {
-          const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim();
-          const rDay = r.consultDate ? r.consultDate.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
-          if (cleanRefNum && rRef && cleanRefNum === rRef && (!rDay || rDay === consultDay)) {
-            return false;
-          }
-        }
-        return true;
-      });
+      const filtered = prev.filter(r => r.id !== targetRxId);
 
       const updated = deduplicatePrescriptions([newRx, ...filtered]);
       updated.sort((a, b) => {
@@ -2650,20 +2615,9 @@ export default function App() {
         setTempMed({ name: '', composition: '', dosage: '', frequency: '' });
       }
 
-      // Check if this prescription already exists in memory/list to update rather than create duplicates
+      // Only update an existing prescription if selectedOfflineRxId was explicitly loaded (e.g. editing an existing prescription)
+      // When starting fresh from Queue or New Prescription, currentRxId is null so a new distinct prescription is created!
       let currentRxId = selectedOfflineRxId;
-      if (!currentRxId && offlineForm.referenceId) {
-        const cleanRefNum = String(offlineForm.referenceId).trim().replace(/^ref-?/i, '');
-        const existing = offlineRxList.find(r => {
-          const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim();
-          const rDay = r.consultDate ? r.consultDate.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
-          return cleanRefNum && rRef && cleanRefNum === rRef && (!rDay || rDay === offlineForm.consultDate);
-        });
-        if (existing) {
-          currentRxId = existing.id;
-          setSelectedOfflineRxId(existing.id);
-        }
-      }
 
       const isNewVisit = currentRxId && (offlineForm.consultDate !== originalConsultDate);
       const body = {
@@ -2696,7 +2650,7 @@ export default function App() {
         fetchOfflinePrescriptions();
         fetchMedicines();
 
-        // Mark ONLY the actively consulted patient in OPD Queue as COMPLETED
+        // Mark ONLY the actively consulted patient in OPD Queue as COMPLETED and attach prescription_id
         const currentRef = (data.prescription?.referenceId || offlineForm.referenceId || '').replace(/^ref-?/i, '').trim();
         const currentPatientName = (offlineForm.patientName || '').trim().toLowerCase();
 
@@ -2714,7 +2668,7 @@ export default function App() {
         if (targetQueueId) {
           setOpdQueue(prev => {
             const next = prev.map(item => {
-              return item.id === targetQueueId ? { ...item, status: 'COMPLETED' } : item;
+              return item.id === targetQueueId ? { ...item, status: 'COMPLETED', prescription_id: data.prescription.id } : item;
             });
             try { localStorage.setItem('cached_opd_queue', JSON.stringify(next)); } catch (e) {}
             return next;
@@ -4697,7 +4651,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
 
           <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
-            {(!user?.name || user.name.includes('undefined')) ? 'Dr. Priyadarshi Srivastava' : user.name}
+            {(!user?.name || String(user.name).toLowerCase().includes('undefined') || String(user.name).toLowerCase().includes('null')) ? (user?.role === 'RECEPTIONIST' ? 'Front Desk / Reception' : 'Dr. Priyadarshi Srivastava') : user.name}
           </div>
           <button 
             type="button"
@@ -5064,7 +5018,7 @@ export default function App() {
                                  hasMed;
                         })
                         .map(rx => {
-                          const isSelected = selectedOfflineRxId === rx.id || offlineForm.referenceId === rx.referenceId;
+                          const isSelected = selectedOfflineRxId === rx.id;
                           const cleanRef = (rx.referenceId || '').replace(/^ref-?/i, '') || rx.referenceId || '---';
                           const ageGenderStr = `${rx.patientAge ? `${rx.patientAge} Yrs` : '--'} / ${rx.patientGender || 'Male'}`;
                           const dateStr = formatPrintDate(rx.consultDate || rx.created_at || rx.createdAt);
@@ -5137,8 +5091,13 @@ export default function App() {
                               </div>
 
                               {/* Row 2: Ref: 220/2026 */}
-                              <div style={{ fontSize: '0.88rem', color: '#0f766e', fontWeight: 700, marginTop: '0.05rem' }}>
-                                Ref: {cleanRef}
+                              <div style={{ fontSize: '0.88rem', color: '#0f766e', fontWeight: 700, marginTop: '0.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>Ref: {cleanRef}</span>
+                                {rx.diagnosis && (
+                                  <span style={{ fontSize: '0.72rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '0.08rem 0.35rem', borderRadius: '4px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {rx.diagnosis}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Row 3: 22 Yrs / Male */}
@@ -5270,18 +5229,48 @@ export default function App() {
                           // A patient is ONLY done if their queue status is explicitly COMPLETED or CONSULTED
                           const isDone = qPatient.status === 'COMPLETED' || qPatient.status === 'CONSULTED';
 
-                          // Cross-reference with offlineRxList ONLY for completed patients to provide View Rx button
-                          const matchingRx = isDone ? offlineRxList.find(rx => {
-                            const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
-                            if (cleanRefNum && rxRef && cleanRefNum === rxRef) return true;
-                            const rxName = (rx.patientName || '').trim().toLowerCase();
-                            const qName = patientName.trim().toLowerCase();
-                            if (rxName && qName && rxName === qName) {
-                              const rxDay = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
-                              return !rxDay || rxDay === getLocalDateStr();
+                          // Cross-reference with offlineRxList for completed patients to provide View Rx button
+                          const matchingRx = isDone ? (() => {
+                            if (qPatient.prescription_id) {
+                              const direct = offlineRxList.find(rx => rx.id === qPatient.prescription_id);
+                              if (direct) return direct;
                             }
-                            return false;
-                          }) : null;
+                            const byQueueId = offlineRxList.find(rx => rx.queuePatientId === qPatient.id);
+                            if (byQueueId) return byQueueId;
+
+                            // Match by reference number or patient name
+                            const matchingForRef = offlineRxList.filter(rx => {
+                              const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+                              if (cleanRefNum && rxRef && cleanRefNum === rxRef) return true;
+                              const rxName = (rx.patientName || '').trim().toLowerCase();
+                              const qName = patientName.trim().toLowerCase();
+                              return rxName && qName && rxName === qName;
+                            });
+
+                            if (matchingForRef.length > 1) {
+                              // If multiple visits exist for this patient/ref, map tokens to visit index chronologically
+                              const sortedMatching = [...matchingForRef].sort((a, b) => {
+                                const tA = new Date(a.createdAt || a.consultDate || 0).getTime();
+                                const tB = new Date(b.createdAt || b.consultDate || 0).getTime();
+                                return tA - tB;
+                              });
+
+                              const samePatientTokens = sortedQueueList.filter(item => {
+                                const itemDone = item.status === 'COMPLETED' || item.status === 'CONSULTED';
+                                if (!itemDone) return false;
+                                const iRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+                                const iName = String(item.patient_name || item.name || '').trim().toLowerCase();
+                                return (cleanRefNum && iRef && cleanRefNum === iRef) || (patientName.trim().toLowerCase() && iName && patientName.trim().toLowerCase() === iName);
+                              });
+
+                              const tokenIndex = samePatientTokens.findIndex(item => item.id === qPatient.id);
+                              if (tokenIndex !== -1 && tokenIndex < sortedMatching.length) {
+                                return sortedMatching[tokenIndex];
+                              }
+                            }
+
+                            return matchingForRef[0] || null;
+                          })() : null;
 
                           return (
                             <div
@@ -5454,23 +5443,34 @@ export default function App() {
                                   ) : (
                                     <button
                                       type="button"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         startConsultationFromQueue(qPatient);
                                         closeSidebar();
+                                        setQueueNavToast(`📄 Opened prescription for ${patientName} (Ref: ${refStr})`);
+                                        setTimeout(() => setQueueNavToast(null), 3500);
                                       }}
-                                      title="Re-open prescription for this patient"
+                                      title="Open prescription for this patient"
                                       style={{
                                         backgroundColor: '#ffffff',
-                                        border: '1px solid #cbd5e1',
-                                        borderRadius: '4px',
-                                        padding: '0.18rem 0.45rem',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 700,
-                                        color: '#475569',
-                                        cursor: 'pointer'
+                                        border: '1.5px solid #0f766e',
+                                        borderRadius: '5px',
+                                        padding: '0.22rem 0.55rem',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 800,
+                                        color: '#0f766e',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        boxShadow: '0 1px 3px rgba(15,118,110,0.12)',
+                                        transition: 'all 0.15s ease'
                                       }}
+                                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#0f766e'; e.currentTarget.style.color = '#ffffff'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.color = '#0f766e'; }}
                                     >
-                                      Re-open
+                                      <span>📄</span>
+                                      <span>View Rx</span>
                                     </button>
                                   )}
                                 </div>

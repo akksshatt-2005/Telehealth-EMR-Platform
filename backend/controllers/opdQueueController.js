@@ -17,7 +17,7 @@ let inMemoryOpdQueue = [...DEFAULT_OPD_QUEUE];
 /**
  * Mark a patient in the in-memory OPD queue as COMPLETED based on queueId or the first WAITING patient matching referenceId/patientName.
  */
-export function markQueuePatientCompletedInMemory({ queueId, referenceId, patientName }) {
+export function markQueuePatientCompletedInMemory({ queueId, referenceId, patientName, prescriptionId }) {
   const refClean = referenceId ? String(referenceId).replace(/^ref-?/i, '').trim().toLowerCase() : '';
   const nameClean = patientName ? String(patientName).trim().toLowerCase() : '';
   let updatedItem = null;
@@ -25,7 +25,7 @@ export function markQueuePatientCompletedInMemory({ queueId, referenceId, patien
 
   inMemoryOpdQueue = inMemoryOpdQueue.map(item => {
     if (queueId && item.id === queueId) {
-      updatedItem = { ...item, status: 'COMPLETED' };
+      updatedItem = { ...item, status: 'COMPLETED', prescription_id: prescriptionId || item.prescription_id };
       return updatedItem;
     }
     if (!queueId && !matchedOne && item.status === 'WAITING') {
@@ -33,7 +33,7 @@ export function markQueuePatientCompletedInMemory({ queueId, referenceId, patien
       const itemName = String(item.patient_name || item.name || '').trim().toLowerCase();
       if ((refClean && itemRef && refClean === itemRef) || (nameClean && itemName && nameClean === itemName)) {
         matchedOne = true;
-        updatedItem = { ...item, status: 'COMPLETED' };
+        updatedItem = { ...item, status: 'COMPLETED', prescription_id: prescriptionId || item.prescription_id };
         return updatedItem;
       }
     }
@@ -90,7 +90,8 @@ export async function ensureOpdQueueTable() {
     `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "patient_type" TEXT NOT NULL DEFAULT 'NEW';`,
     `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_status" TEXT NOT NULL DEFAULT 'PAID';`,
     `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "fee_amount" NUMERIC NOT NULL DEFAULT 700;`,
-    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "payment_mode" TEXT NOT NULL DEFAULT 'CASH';`
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "payment_mode" TEXT NOT NULL DEFAULT 'CASH';`,
+    `ALTER TABLE "opd_queue" ADD COLUMN IF NOT EXISTS "prescription_id" TEXT;`
   ];
 
   for (const query of alterColumns) {
