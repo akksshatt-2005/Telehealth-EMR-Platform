@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Roboto:wght@400;500;700;900&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700;900&family=Montserrat:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
   --primary: #0f766e;
@@ -719,10 +719,21 @@ input:focus, textarea:focus, select:focus {
   border-color: #ccfbf1;
 }
 
+/* Letterhead clearances: hidden on screen to shift details to the top; active on print */
+.print-letterhead-header-clearance,
+.print-letterhead-footer-clearance {
+  display: none !important;
+}
+
 @media print {
   @page {
     size: A4 portrait;
     margin: 0 !important;
+  }
+
+  .print-letterhead-header-clearance,
+  .print-letterhead-footer-clearance {
+    display: block !important;
   }
 
   *, *::before, *::after {
@@ -1193,5 +1204,293 @@ input:focus, textarea:focus, select:focus {
     gap: 1.5rem;
   }
 }
+
+/* =========================================================
+   Modern 3-Column + Icon Rail Rx Maker Dashboard Styles
+   ========================================================= */
+
+.rx-top-header {
+  height: 56px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.rx-nav-pill {
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.rx-nav-pill:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+.rx-nav-pill.active {
+  background-color: #e6f4f2;
+  color: #0f766e;
+  border-color: #99f6e4;
+  font-weight: 700;
+}
+
+.rx-search-bar {
+  display: flex;
+  align-items: center;
+  background-color: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.rx-search-bar:focus-within {
+  border-color: #0f766e;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.rx-master-container {
+  display: grid;
+  grid-template-columns: 50px 285px minmax(390px, 1fr) minmax(480px, 1.2fr);
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  background-color: #f1f5f9;
+  transition: grid-template-columns 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rx-master-container.queue-collapsed {
+  grid-template-columns: 50px minmax(440px, 1fr) minmax(560px, 1.35fr);
+}
+
+@media (max-width: 1360px) {
+  .rx-master-container {
+    grid-template-columns: 50px 260px 1fr 1.15fr;
+  }
+  .rx-master-container.queue-collapsed {
+    grid-template-columns: 50px 1fr 1.25fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .rx-master-container {
+    grid-template-columns: 50px 1fr;
+    overflow-y: auto;
+    height: auto;
+  }
+}
+
+/* Left Icon Rail */
+.rx-icon-rail {
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.rx-rail-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 1.15rem;
+  transition: all 0.15s ease;
+}
+
+.rx-rail-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f766e;
+}
+
+.rx-rail-btn.active {
+  background-color: #e6f4f2;
+  color: #0f766e;
+}
+
+/* Today's Queue Column */
+.rx-queue-column {
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.rx-queue-header {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rx-queue-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rx-queue-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rx-queue-card:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.rx-queue-card.active {
+  border-color: #0f766e;
+  background-color: #f0fdfa;
+}
+
+.rx-queue-token {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.75rem;
+  background-color: #f1f5f9;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.rx-queue-card.active .rx-queue-token {
+  background-color: #0f766e;
+  color: #ffffff;
+}
+
+/* Form Column */
+.rx-form-column {
+  padding: 0.85rem 1.15rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.rx-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.rx-card-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.rx-input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.84rem;
+  color: #1e293b;
+  outline: none;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.rx-input:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+}
+
+.rx-chip {
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.rx-chip:hover {
+  border-color: #0f766e;
+  color: #0f766e;
+  background-color: #f0fdfa;
+}
+
+.rx-chip.active {
+  background-color: #ccfbf1;
+  border-color: #0f766e;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+/* Live Preview Column */
+.rx-preview-column {
+  background-color: #f8fafc;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.65rem 0.85rem;
+  overflow: hidden; /* Fixed - zero scrolling on the right side */
+  gap: 0.4rem;
+  height: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
 
 

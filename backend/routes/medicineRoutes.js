@@ -14,7 +14,11 @@ router.use(requireAuth, requireRole('DOCTOR'));
 
 router.post('/doctor/medicines', addMedicine);
 router.get('/doctor/medicines', getMedicines);
+router.post('/medicines', addMedicine);
+router.get('/medicines', getMedicines);
 router.put('/doctor/medicines/:id', updateMedicine);
 router.delete('/doctor/medicines/:id', deleteMedicine);
+router.put('/medicines/:id', updateMedicine);
+router.delete('/medicines/:id', deleteMedicine);
 
 export default router;
