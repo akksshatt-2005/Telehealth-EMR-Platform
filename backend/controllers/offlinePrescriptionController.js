@@ -96,6 +96,145 @@ const DEFAULT_OFFLINE_PRESCRIPTIONS = [
     requiredTests: 'CBC, Serum B12, Vit D3',
     followUpDate: '2026-11-02',
     privateNotes: 'Referred by family. Needs follow-up in 1 month.'
+  },
+  {
+    id: 'rx-naseem-4',
+    referenceId: 'REF-213/2026',
+    patientName: 'Naseem',
+    patientPhone: '9876543210',
+    patientAge: '53',
+    patientGender: 'Male',
+    consultDate: '2026-11-11',
+    diagnosis: 'PANIC DISORDER WITH MILD AGORAPHOBIA',
+    chiefComplaints: 'ANXIETY, RESTLESSNESS, DYSPNEA, BODY PAINS, INTERMITTENT PANIC ATTACKS',
+    bp: '131/89',
+    pulse: '85',
+    weight: '48',
+    sugar: '',
+    medications: [
+      { name: 'EXITRACE', composition: 'FLUPENTHIXOLE', dosage: '1MG', frequency: '0-0-1 (रात को सोने से पहले / At bedtime)' },
+      { name: 'CLONAM PRO DS', composition: 'CLONAZEPAM 0.5 MG + PROPRANOLOL 20 MG', dosage: '1TAB', frequency: 'SOS (ज़रूरत पड़ने पर / As needed) FOR ANXIETY ATTACKS' },
+      { name: 'NEXITO PLUS', composition: 'ESCITALOPRAM 10 MG + CLONAZEPAM 0.5 MG', dosage: '1TAB', frequency: '1-0-0 (सुबह नाश्ते के बाद)' }
+    ],
+    advice: 'Follow-up: Visit within 17 days (Date: 27/11/2026). Deep breathing exercises.',
+    requiredTests: 'CBC, THYROID PROFILE',
+    followUpDate: '2026-11-27',
+    privateNotes: 'Regular follow-up.'
+  },
+  {
+    id: 'rx-shaheen-1',
+    referenceId: 'REF-223/2026',
+    patientName: 'Shaheen',
+    patientPhone: '9559887094',
+    patientAge: '50',
+    patientGender: 'Female',
+    consultDate: '2026-11-11',
+    diagnosis: 'Major Depressive Episode with Psychomotor Agitation',
+    chiefComplaints: 'Low mood, early morning awakening, psychomotor restlessness',
+    bp: '136/88',
+    pulse: '84',
+    weight: '64',
+    sugar: '',
+    medications: [
+      { name: 'Tab. Duloxetine 30mg', composition: 'Duloxetine 30mg', dosage: '1 Tab', frequency: '1-0-0 (सुबह नाश्ते के बाद)' },
+      { name: 'Tab. Clonazepam 0.5mg', composition: 'Clonazepam 0.5mg', dosage: '0.5 Tab', frequency: '0-0-1 (रात को)' }
+    ],
+    advice: 'Morning sunlight exposure 20 mins, mild walking.',
+    requiredTests: 'Thyroid Panel, Serum Electrolytes',
+    followUpDate: '2026-11-25',
+    privateNotes: 'Patient accompanied by family.'
+  },
+  {
+    id: 'rx-sakina-1',
+    referenceId: 'REF-217/2026',
+    patientName: 'Sakina',
+    patientPhone: '7525090696',
+    patientAge: '26',
+    patientGender: 'Female',
+    consultDate: '2026-11-11',
+    diagnosis: 'Social Anxiety Disorder & Palpitations',
+    chiefComplaints: 'Intense social fear, workplace trembling, performance anxiety',
+    bp: '118/76',
+    pulse: '82',
+    weight: '52',
+    sugar: '',
+    medications: [
+      { name: 'Tab. Nexito Plus', composition: 'Escitalopram 10mg + Clonazepam 0.5mg', dosage: '1 Tab', frequency: '1-0-0 (सुबह)' },
+      { name: 'Tab. Propranolol 20mg', composition: 'Propranolol 20mg', dosage: '1 Tab', frequency: 'SOS (ज़रूरत पड़ने पर)' }
+    ],
+    advice: 'Grounding techniques, 4-7-8 breathing exercises.',
+    requiredTests: 'ECG, CBC, TSH',
+    followUpDate: '2026-11-28',
+    privateNotes: 'Follow-up patient.'
+  },
+  {
+    id: 'rx-munni-1',
+    referenceId: 'REF-206/2026',
+    patientName: 'Munni',
+    patientPhone: '9554554519',
+    patientAge: '42',
+    patientGender: 'Female',
+    consultDate: '2026-11-11',
+    diagnosis: 'Chronic Migraine with Sleep Disturbances',
+    chiefComplaints: 'Bilateral throbbing headache, photophobia, insomnia',
+    bp: '130/84',
+    pulse: '76',
+    weight: '58',
+    sugar: '',
+    medications: [
+      { name: 'Tab. Amitriptyline 10mg', composition: 'Amitriptyline 10mg', dosage: '1 Tab', frequency: '0-0-1 (रात को सोने से पहले)' },
+      { name: 'Tab. Naproxen 500mg', composition: 'Naproxen 500mg', dosage: '1 Tab', frequency: 'SOS (दर्द होने पर)' }
+    ],
+    advice: 'Maintain regular sleep schedule, avoid dietary triggers.',
+    requiredTests: 'CBC, ESR',
+    followUpDate: '2026-11-26',
+    privateNotes: 'Regular monthly patient.'
+  },
+  {
+    id: 'rx-amir-1',
+    referenceId: 'REF-222/2026',
+    patientName: 'Amir',
+    patientPhone: '9119631330',
+    patientAge: '30',
+    patientGender: 'Male',
+    consultDate: '2026-11-11',
+    diagnosis: 'Generalized Anxiety Disorder & Stress Fatigue',
+    chiefComplaints: 'Persistent muscle tension, nervous apprehension, disturbed sleep',
+    bp: '124/80',
+    pulse: '78',
+    weight: '66',
+    sugar: '',
+    medications: [
+      { name: 'Tab. Nexito 10mg', composition: 'Escitalopram 10mg', dosage: '1 Tab', frequency: '1-0-0 (सुबह नाश्ते के बाद)' },
+      { name: 'Tab. Zapiz 0.25mg', composition: 'Clonazepam 0.25mg', dosage: '1 Tab', frequency: '0-0-1 (रात को)' }
+    ],
+    advice: 'Daily 30 min brisk walk, limit caffeine after 4 PM.',
+    requiredTests: 'CBC, Lipid Profile, TSH',
+    followUpDate: '2026-11-25',
+    privateNotes: 'Corporate tech employee.'
+  },
+  {
+    id: 'rx-peeyush-1',
+    referenceId: 'REF-221/2026',
+    patientName: 'Peeyush',
+    patientPhone: '9984020882',
+    patientAge: '37',
+    patientGender: 'Male',
+    consultDate: '2026-11-11',
+    diagnosis: 'Health Anxiety & Somatization',
+    chiefComplaints: 'Constant health worry, frequent chest checking, tension headache',
+    bp: '122/80',
+    pulse: '74',
+    weight: '70',
+    sugar: '',
+    medications: [
+      { name: 'Tab. Nexito Plus', composition: 'Escitalopram 10mg + Clonazepam 0.5mg', dosage: '1 Tab', frequency: '1-0-0 (सुबह)' },
+      { name: 'Tab. Dolo 650', composition: 'Paracetamol 650mg', dosage: '1 Tab', frequency: 'SOS (सिरदर्द पर)' }
+    ],
+    advice: 'Avoid checking vitals repeatedly. Reassurance given.',
+    requiredTests: 'ECG, Serum Ferritin, Vit D3',
+    followUpDate: '2026-11-26',
+    privateNotes: 'Reassured regarding normal ECG and vitals.'
   }
 ];
 
@@ -378,6 +517,10 @@ export async function createOfflinePrescription(req, res) {
       } catch (e) {}
     }
 
+    if (!prescriptions || prescriptions.length === 0) {
+      prescriptions = inMemoryPrescriptions;
+    }
+
     return res.status(200).json({
       success: true,
       prescription
@@ -506,6 +649,10 @@ export async function getOfflinePrescriptions(req, res) {
         privateNotes: rx.privateNotes || rx.private_notes || '',
         private_notes: rx.privateNotes || rx.private_notes || ''
       }));
+    }
+
+    if (!prescriptions || prescriptions.length === 0) {
+      prescriptions = inMemoryPrescriptions;
     }
 
     return res.status(200).json({
