@@ -3440,23 +3440,20 @@ export default function App() {
     setShowPastVisitsModal(false);
     setShowPastVisitsDrawer(false);
 
-    // 1. If an explicit prescription was passed (e.g. from Other Family Prescriptions card)
-    if (fam.latestRx) {
-      loadOfflinePrescription(fam.latestRx);
-      const queueEntry = fam.queuePatient || (opdQueue || []).find(q => 
-        (q.patient_name && isSamePatientName(q.patient_name, fam.name)) ||
-        (q.phone && q.phone === offlineForm.patientPhone && isSamePatientName(q.patient_name, fam.name))
-      );
-      if (queueEntry) {
-        setOpdQueue(prev => prev.map(item => item.id === queueEntry.id ? { ...item, status: 'COMPLETED', prescription_id: fam.latestRx.id } : item));
-      }
-      setActiveConsultingQueueId(null);
-      setQueueNavToast(`📄 Loaded prescription for ${fam.latestRx.patientName || fam.name} (Ref: ${fam.latestRx.referenceId || ''})`);
+    // 1. Check if this family member has a pending entry in today's OPD queue waiting to be consulted!
+    const queueEntry = fam.queuePatient || (opdQueue || []).find(q => 
+      (q.patient_name && isSamePatientName(q.patient_name, fam.name)) ||
+      (q.phone && q.phone === offlineForm.patientPhone && isSamePatientName(q.patient_name, fam.name))
+    );
+
+    if (queueEntry && queueEntry.status !== 'COMPLETED' && queueEntry.status !== 'CONSULTED') {
+      startConsultationFromQueue(queueEntry);
+      setQueueNavToast(`👨‍👩‍👧 Switched to family member: ${queueEntry.patient_name} (Token #${queueEntry.token_number})`);
       setTimeout(() => setQueueNavToast(null), 3000);
       return;
     }
 
-    // 2. Check if this family member already has a prescription created today
+    // 2. Check if this family member already has a prescription created TODAY
     const todayStr = getLocalDateStr();
     const existingTodayRx = (offlineRxList || []).find(r => {
       const rDate = r.consultDate ? r.consultDate.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
@@ -3467,10 +3464,6 @@ export default function App() {
 
     if (existingTodayRx) {
       loadOfflinePrescription(existingTodayRx);
-      const queueEntry = fam.queuePatient || (opdQueue || []).find(q => 
-        (q.patient_name && isSamePatientName(q.patient_name, fam.name)) ||
-        (q.phone && q.phone === offlineForm.patientPhone && isSamePatientName(q.patient_name, fam.name))
-      );
       if (queueEntry) {
         setOpdQueue(prev => prev.map(item => item.id === queueEntry.id ? { ...item, status: 'COMPLETED', prescription_id: existingTodayRx.id } : item));
       }
@@ -3480,15 +3473,11 @@ export default function App() {
       return;
     }
 
-    // 3. Check if this family member has a pending entry in today's OPD queue
-    const queueEntry = fam.queuePatient || (opdQueue || []).find(q => 
-      (q.patient_name && isSamePatientName(q.patient_name, fam.name)) ||
-      (q.phone && q.phone === offlineForm.patientPhone && isSamePatientName(q.patient_name, fam.name))
-    );
-
-    if (queueEntry && queueEntry.status !== 'COMPLETED' && queueEntry.status !== 'CONSULTED') {
-      startConsultationFromQueue(queueEntry);
-      setQueueNavToast(`👨‍👩‍👧 Switched to family member: ${queueEntry.patient_name} (Token #${queueEntry.token_number})`);
+    // 3. Otherwise if they have a past prescription from an earlier date, load it without completing today's queue
+    if (fam.latestRx) {
+      loadOfflinePrescription(fam.latestRx);
+      setActiveConsultingQueueId(null);
+      setQueueNavToast(`📄 Loaded past prescription for ${fam.latestRx.patientName || fam.name} (Ref: ${fam.latestRx.referenceId || ''})`);
       setTimeout(() => setQueueNavToast(null), 3000);
       return;
     }
@@ -5230,7 +5219,8 @@ export default function App() {
                   const queueList = deduplicateQueue(opdQueue || []);
 
                   const isPatientDone = (q) => {
-                    return q.status === 'COMPLETED' || q.status === 'CONSULTED';
+                    if (!q || q.status === 'WAITING') return false;
+                    return q.status === 'COMPLETED' || q.status === 'CONSULTED' || Boolean(q.prescription_id);
                   };
 
                   const waitingCount = queueList.filter(q => !isPatientDone(q)).length;
@@ -5344,8 +5334,17 @@ export default function App() {
                           const payMode = qPatient.payment_mode || qPatient.mode || 'Cash';
                           const isCurrent = activeConsultingQueueId === qPatient.id;
 
-                          // Cross-reference with offlineRxList for ANY matching prescription
-                          const matchingRx = (() => {
+                          // A queue patient is done ONLY if their status is explicitly COMPLETED or CONSULTED,
+                          // or if a prescription was explicitly saved for THIS queue token today.
+                          // A patient who is 'WAITING' or currently in consultation ('isCurrent') is NEVER done!
+                          const isDone = !isCurrent && qPatient.status !== 'WAITING' && (
+                            qPatient.status === 'COMPLETED' || 
+                            qPatient.status === 'CONSULTED' ||
+                            Boolean(qPatient.prescription_id)
+                          );
+
+                          // Cross-reference with offlineRxList ONLY when this token is completed today
+                          const matchingRx = isDone ? (() => {
                             if (qPatient.prescription_id) {
                               const direct = offlineRxList.find(rx => rx.id === qPatient.prescription_id);
                               if (direct) return direct;
@@ -5353,10 +5352,15 @@ export default function App() {
                             const byQueueId = offlineRxList.find(rx => rx.queuePatientId === qPatient.id);
                             if (byQueueId) return byQueueId;
 
-                            // Match by reference number or patient name
-                            const matchingForRef = offlineRxList.filter(rx => {
+                            // Match ONLY prescriptions created TODAY
+                            const todayStr = getLocalDateStr();
+                            const todayMatches = offlineRxList.filter(rx => {
+                              const rxDate = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
+                              if (rxDate !== todayStr) return false;
+
                               const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
                               if (cleanRefNum && rxRef && cleanRefNum === rxRef) return true;
+
                               const rxName = (rx.patientName || '').trim().toLowerCase();
                               const qName = patientName.trim().toLowerCase();
                               const rxPhone = (rx.patientPhone || '').trim();
@@ -5366,31 +5370,8 @@ export default function App() {
                               return nameMatch && phoneMatch;
                             });
 
-                            if (matchingForRef.length > 1) {
-                              // If multiple visits exist for this patient/ref, map tokens to visit index chronologically
-                              const sortedMatching = [...matchingForRef].sort((a, b) => {
-                                const tA = new Date(a.createdAt || a.consultDate || 0).getTime();
-                                const tB = new Date(b.createdAt || b.consultDate || 0).getTime();
-                                return tA - tB;
-                              });
-
-                              const samePatientTokens = sortedQueueList.filter(item => {
-                                const iRef = String(item.reference_id || item.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
-                                const iName = String(item.patient_name || item.name || '').trim().toLowerCase();
-                                return (cleanRefNum && iRef && cleanRefNum === iRef) || (patientName.trim().toLowerCase() && iName && patientName.trim().toLowerCase() === iName);
-                              });
-
-                              const tokenIndex = samePatientTokens.findIndex(item => item.id === qPatient.id);
-                              if (tokenIndex !== -1 && tokenIndex < sortedMatching.length) {
-                                return sortedMatching[tokenIndex];
-                              }
-                            }
-
-                            return matchingForRef[0] || null;
-                          })();
-
-                          // A patient is considered done if their status is COMPLETED/CONSULTED or if they already have a saved prescription
-                          const isDone = (qPatient.status === 'COMPLETED' || qPatient.status === 'CONSULTED' || !!matchingRx) && !isCurrent;
+                            return todayMatches[0] || null;
+                          })() : null;
 
                           return (
                             <div
@@ -5560,44 +5541,7 @@ export default function App() {
                                       <span>📄</span>
                                       <span>View Rx</span>
                                     </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const fallbackRx = (offlineRxList || []).find(rx => isSamePatientName(rx.patientName, patientName));
-                                        if (fallbackRx) {
-                                          loadOfflinePrescription(fallbackRx);
-                                          setQueueNavToast(`📄 Loaded prescription for ${patientName} (Ref: ${fallbackRx.referenceId || refStr})`);
-                                        } else {
-                                          setQueueNavToast(`Notice: Prescription file not found for ${patientName}`);
-                                        }
-                                        closeSidebar();
-                                        setTimeout(() => setQueueNavToast(null), 3500);
-                                      }}
-                                      title="Open prescription for this patient"
-                                      style={{
-                                        backgroundColor: '#ffffff',
-                                        border: '1.5px solid #0f766e',
-                                        borderRadius: '5px',
-                                        padding: '0.22rem 0.55rem',
-                                        fontSize: '0.74rem',
-                                        fontWeight: 800,
-                                        color: '#0f766e',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.25rem',
-                                        boxShadow: '0 1px 3px rgba(15,118,110,0.12)',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#0f766e'; e.currentTarget.style.color = '#ffffff'; }}
-                                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.color = '#0f766e'; }}
-                                    >
-                                      <span>📄</span>
-                                      <span>View Rx</span>
-                                    </button>
-                                  )}
+                                  ) : null}
                                 </div>
                               ) : (
                                 <button
