@@ -1253,6 +1253,17 @@ export default function App() {
     }
   }, [medicinesList, tempMed?.name]);
 
+  const [loadingMedicines, setLoadingMedicines] = useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = useState('prescriptions'); // 'prescriptions' or 'inventory'
+  const [newMedForm, setNewMedForm] = useState({ name: '', composition: '', dosage: '' });
+  const [editingMedId, setEditingMedId] = useState(null);
+  const [editingMedName, setEditingMedName] = useState('');
+  const [editingMedComposition, setEditingMedComposition] = useState('');
+  const [editingMedDosage, setEditingMedDosage] = useState('');
+  const [editingOfflineMedIndex, setEditingOfflineMedIndex] = useState(null);
+  const [editingOfflineMed, setEditingOfflineMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
+  const [showEditMedDropdown, setShowEditMedDropdown] = useState(false);
+
   // Memoized filtered medicines for inline medicine editing autocomplete
   const filteredEditMeds = useMemo(() => {
     try {
@@ -1269,16 +1280,6 @@ export default function App() {
       return [];
     }
   }, [medicinesList, editingOfflineMed?.name]);
-  const [loadingMedicines, setLoadingMedicines] = useState(false);
-  const [activeSidebarTab, setActiveSidebarTab] = useState('prescriptions'); // 'prescriptions' or 'inventory'
-  const [newMedForm, setNewMedForm] = useState({ name: '', composition: '', dosage: '' });
-  const [editingMedId, setEditingMedId] = useState(null);
-  const [editingMedName, setEditingMedName] = useState('');
-  const [editingMedComposition, setEditingMedComposition] = useState('');
-  const [editingMedDosage, setEditingMedDosage] = useState('');
-  const [editingOfflineMedIndex, setEditingOfflineMedIndex] = useState(null);
-  const [editingOfflineMed, setEditingOfflineMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
-  const [showEditMedDropdown, setShowEditMedDropdown] = useState(false);
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
   const [fontSearchQuery, setFontSearchQuery] = useState('');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
