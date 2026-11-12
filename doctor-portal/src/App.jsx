@@ -8768,8 +8768,7 @@ export default function App() {
                           position: 'relative',
                           minWidth: 0,
                           maxWidth: '100%',
-                          boxSizing: 'border-box',
-                          overflow: 'hidden'
+                          boxSizing: 'border-box'
                         }}
                       >
                         {/* Visit Title Bar */}
@@ -8800,8 +8799,8 @@ export default function App() {
                                 ...prev,
                                 medications: [...pMeds],
                                 diagnosis: targetDiagnosis,
-                                advice: prx.advice || prev.advice || '',
-                                requiredTests: prx.requiredTests || prev.requiredTests || ''
+                                advice: '',
+                                followUpDate: ''
                               }));
                               setShowPastVisitsModal(false);
                               setQueueNavToast(`📋 Copied ${pMeds.length} meds & Diagnosis ("${targetDiagnosis}") into today's Rx!`);
@@ -8871,12 +8870,12 @@ export default function App() {
                           </div>
 
                           {/* Right Column: Prescribed Medications Table */}
-                          <div style={{ border: '1.5px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #0f766e', padding: '0.45rem 0.75rem', fontSize: '0.76rem', fontWeight: 800, color: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ border: '1.5px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                            <div style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #0f766e', padding: '0.45rem 0.75rem', fontSize: '0.76rem', fontWeight: 800, color: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                               <span>℞ PRESCRIBED MEDICATIONS</span>
                               <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: 700 }}>{pMeds.length} items</span>
                             </div>
-                            <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto', scrollbarWidth: 'thin' }}>
                               {pMeds.length === 0 ? (
                                 <div style={{ padding: '1.25rem 0.75rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
                                   No prescribed medications recorded for this visit.
