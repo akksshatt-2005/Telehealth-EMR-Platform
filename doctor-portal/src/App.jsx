@@ -3037,6 +3037,7 @@ export default function App() {
 
   // Reset/Create fresh offline prescription template
   const resetOfflineForm = () => {
+    setActiveConsultingQueueId(null);
     setSelectedOfflineRxId(null);
     setOriginalConsultDate('');
     setEditingOfflineMedIndex(null);
@@ -3080,6 +3081,20 @@ export default function App() {
     }));
     fetchNextReferenceId(true);
   };
+
+  // If the active queue patient was removed/deleted from the OPD queue (or queue cleared at front desk),
+  // automatically reset the consultation form so deleted patient details don't linger on screen.
+  useEffect(() => {
+    if (activeConsultingQueueId && selectedOfflineRxId === null) {
+      const stillInQueue = (opdQueue || []).some(item => item.id === activeConsultingQueueId);
+      if (!stillInQueue) {
+        setActiveConsultingQueueId(null);
+        resetOfflineForm();
+        setQueueNavToast('Notice: Active queue patient was removed from queue. Consultation form reset.');
+        setTimeout(() => setQueueNavToast(null), 3500);
+      }
+    }
+  }, [opdQueue, activeConsultingQueueId, selectedOfflineRxId]);
 
   // Medication handlers for offline prescription form
   const addOfflineMedicationRow = () => {
