@@ -6674,33 +6674,159 @@ export default function App() {
                           <th style={{ padding: '0.45rem 0.65rem', fontWeight: 800 }}>MEDICINE NAME</th>
                           <th style={{ padding: '0.45rem 0.65rem', fontWeight: 800 }}>DOSAGE</th>
                           <th style={{ padding: '0.45rem 0.65rem', fontWeight: 800 }}>FREQUENCY & INSTRUCTIONS</th>
-                          <th style={{ padding: '0.45rem 0.65rem', width: '30px' }}></th>
+                          <th style={{ padding: '0.45rem 0.65rem', width: '95px', textAlign: 'center', fontWeight: 800 }}>ACTIONS</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {offlineForm.medications.map((m, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '0.45rem 0.65rem' }}>
-                              <div style={{ fontWeight: 700, color: '#1e293b' }}>{m.name}</div>
-                              {m.composition && (
-                                <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontStyle: 'italic', fontWeight: 600 }}>
-                                  {m.composition}
+                        {offlineForm.medications.map((m, idx) => {
+                          const isEditing = editingOfflineMedIndex === idx;
+
+                          if (isEditing) {
+                            return (
+                              <tr key={idx} style={{ backgroundColor: '#f0fdfa', borderBottom: '2px solid #0f766e' }}>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>
+                                  <input
+                                    type="text"
+                                    className="rx-input"
+                                    value={editingOfflineMed.name}
+                                    onChange={e => setEditingOfflineMed(prev => ({ ...prev, name: e.target.value }))}
+                                    style={{ padding: '0.25rem 0.45rem', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem', width: '100%' }}
+                                    placeholder="Medicine Name"
+                                    autoFocus
+                                  />
+                                  <input
+                                    type="text"
+                                    className="rx-input"
+                                    value={editingOfflineMed.composition}
+                                    onChange={e => setEditingOfflineMed(prev => ({ ...prev, composition: e.target.value }))}
+                                    style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem', fontStyle: 'italic', color: '#b91c1c', width: '100%' }}
+                                    placeholder="Composition (Optional)"
+                                  />
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>
+                                  <input
+                                    type="text"
+                                    className="rx-input"
+                                    value={editingOfflineMed.dosage}
+                                    onChange={e => setEditingOfflineMed(prev => ({ ...prev, dosage: e.target.value }))}
+                                    style={{ padding: '0.25rem 0.45rem', fontSize: '0.8rem', width: '100%' }}
+                                    placeholder="Dosage"
+                                  />
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>
+                                  <input
+                                    type="text"
+                                    className="rx-input"
+                                    value={editingOfflineMed.frequency}
+                                    onChange={e => setEditingOfflineMed(prev => ({ ...prev, frequency: e.target.value }))}
+                                    style={{ padding: '0.25rem 0.45rem', fontSize: '0.8rem', width: '100%' }}
+                                    placeholder="Frequency & Instructions"
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        saveEditOfflineMed(idx);
+                                      } else if (e.key === 'Escape') {
+                                        cancelEditOfflineMed();
+                                      }
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.4rem 0.5rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => saveEditOfflineMed(idx)}
+                                      style={{
+                                        backgroundColor: '#0f766e',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem 0.45rem',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Save changes (Enter)"
+                                    >
+                                      ✓ Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditOfflineMed}
+                                      style={{
+                                        backgroundColor: '#ffffff',
+                                        color: '#64748b',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem 0.45rem',
+                                        fontSize: '0.74rem',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Cancel edit (Esc)"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.45rem 0.65rem' }}>
+                                <div style={{ fontWeight: 700, color: '#1e293b' }}>{m.name}</div>
+                                {m.composition && (
+                                  <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontStyle: 'italic', fontWeight: 600 }}>
+                                    {m.composition}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '0.45rem 0.65rem', color: '#334155' }}>{m.dosage}</td>
+                              <td style={{ padding: '0.45rem 0.65rem', color: '#334155' }}>{m.frequency}</td>
+                              <td style={{ padding: '0.45rem 0.65rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditOfflineMed(idx)}
+                                    style={{
+                                      background: '#f0fdfa',
+                                      border: '1px solid #99f6e4',
+                                      color: '#0f766e',
+                                      borderRadius: '4px',
+                                      padding: '0.18rem 0.4rem',
+                                      cursor: 'pointer',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.2rem'
+                                    }}
+                                    title="Edit this medicine (alter name, dosage, frequency)"
+                                  >
+                                    <span>✏️</span>
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeOfflineMedicationRow(idx)}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#94a3b8',
+                                      cursor: 'pointer',
+                                      fontSize: '0.85rem',
+                                      padding: '0.18rem 0.35rem'
+                                    }}
+                                    title="Remove from Prescription"
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
-                              )}
-                            </td>
-                            <td style={{ padding: '0.45rem 0.65rem', color: '#334155' }}>{m.dosage}</td>
-                            <td style={{ padding: '0.45rem 0.65rem', color: '#334155' }}>{m.frequency}</td>
-                            <td style={{ padding: '0.45rem 0.65rem', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => removeOfflineMedicationRow(idx)}
-                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.85rem' }}
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
