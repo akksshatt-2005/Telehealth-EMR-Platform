@@ -306,12 +306,16 @@ export async function createOfflinePrescription(req, res) {
     queuePatientId
   } = req.body;
 
-  if (!patientName || !patientAge || !patientGender || !diagnosis) {
+  if (!patientName || !patientAge || !patientGender) {
     return res.status(400).json({
       success: false,
-      message: 'Please provide patient details (name, age, gender) and diagnosis.'
+      message: 'Please provide patient details (name, age, gender).'
     });
   }
+
+  const finalDiagnosis = (diagnosis && String(diagnosis).trim()) || 
+                         (chiefComplaints && String(chiefComplaints).trim()) || 
+                         'General Clinical Consultation';
 
   try {
     const doctorProfile = await resolveDoctorProfile(req);
@@ -363,7 +367,7 @@ export async function createOfflinePrescription(req, res) {
       patientName,
       patientAge: parseInt(patientAge, 10),
       patientGender,
-      diagnosis,
+      diagnosis: finalDiagnosis,
       medications: medications || [],
       advice: advice || '',
       requiredTests: requiredTests || '',

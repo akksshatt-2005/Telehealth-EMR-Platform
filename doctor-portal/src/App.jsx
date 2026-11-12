@@ -2032,7 +2032,30 @@ export default function App() {
     const rawRef = queuePatient.reference_id || queuePatient.referenceId || '';
     const cleanRef = String(rawRef).replace(/^ref-?/i, '').trim();
 
-    // ALWAYS start a fresh, clean prescription for today's consultation session!
+    // If a prescription was ALREADY saved for this patient today, load it instead of wiping it!
+    const todayStr = getLocalDateStr();
+    const existingTodayRx = (offlineRxList || []).find(r => {
+      const rDate = r.consultDate ? r.consultDate.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
+      if (rDate !== todayStr) return false;
+      if (queuePatient.prescription_id && r.id === queuePatient.prescription_id) return true;
+      if (r.queuePatientId && r.queuePatientId === queuePatient.id) return true;
+      const rRef = String(r.referenceId || r.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+      const qRef = cleanRef.toLowerCase();
+      if (qRef && rRef && qRef === rRef) return true;
+      const rName = (r.patientName || '').trim().toLowerCase();
+      const qName = patientName.toLowerCase();
+      return rName && qName && (rName === qName || isSamePatientName(rName, qName));
+    });
+
+    if (existingTodayRx) {
+      loadOfflinePrescription(existingTodayRx);
+      setActiveConsultingQueueId(queuePatient.id);
+      setQueueNavToast(`📄 Loaded saved prescription for ${existingTodayRx.patientName || patientName}`);
+      setTimeout(() => setQueueNavToast(null), 3000);
+      return;
+    }
+
+    // ALWAYS start a fresh, clean prescription for today's new consultation session!
     // Never pre-fill previous patient's or past diagnosis/medications into today's blank canvas.
     // Doctor can view past prescriptions anytime via the "Previous Prescriptions" button.
     setSelectedOfflineRxId(null);
@@ -5256,8 +5279,23 @@ export default function App() {
                   const queueList = deduplicateQueue(opdQueue || []);
 
                   const isPatientDone = (q) => {
-                    if (!q || q.status === 'WAITING') return false;
-                    return q.status === 'COMPLETED' || q.status === 'CONSULTED' || Boolean(q.prescription_id);
+                    if (!q) return false;
+                    if (q.status === 'COMPLETED' || q.status === 'CONSULTED' || Boolean(q.prescription_id)) return true;
+                    // Check if a prescription was created for THIS patient TODAY
+                    const todayStr = getLocalDateStr();
+                    const qRef = String(q.reference_id || q.referenceId || '').replace(/^ref-?/i, '').trim().toLowerCase();
+                    const qName = String(q.patient_name || q.name || '').trim().toLowerCase();
+                    const qPhone = String(q.phone || q.patient_phone || '').trim();
+                    return (offlineRxList || []).some(rx => {
+                      const rxDate = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
+                      if (rxDate !== todayStr) return false;
+                      if (rx.queuePatientId && rx.queuePatientId === q.id) return true;
+                      const rxRef = String(rx.referenceId || rx.reference_id || '').replace(/^ref-?/i, '').trim().toLowerCase();
+                      if (qRef && rxRef && qRef === rxRef) return true;
+                      const rxName = String(rx.patientName || '').trim().toLowerCase();
+                      const rxPhone = String(rx.patientPhone || '').trim();
+                      return rxName && qName && (rxName === qName || isSamePatientName(rxName, qName)) && (!rxPhone || !qPhone || rxPhone === qPhone);
+                    });
                   };
 
                   const waitingCount = queueList.filter(q => !isPatientDone(q)).length;
@@ -5371,27 +5409,18 @@ export default function App() {
                           const payMode = qPatient.payment_mode || qPatient.mode || 'Cash';
                           const isCurrent = activeConsultingQueueId === qPatient.id;
 
-                          // A queue patient is done ONLY if their status is explicitly COMPLETED or CONSULTED,
-                          // or if a prescription was explicitly saved for THIS queue token today.
-                          // A patient who is 'WAITING' or currently in consultation ('isCurrent') is NEVER done!
-                          const isDone = !isCurrent && qPatient.status !== 'WAITING' && (
-                            qPatient.status === 'COMPLETED' || 
-                            qPatient.status === 'CONSULTED' ||
-                            Boolean(qPatient.prescription_id)
-                          );
-
-                          // Cross-reference with offlineRxList ONLY when this token is completed today
-                          const matchingRx = isDone ? (() => {
+                          // 1. Check if a prescription was saved for THIS patient TODAY
+                          const matchingTodayRx = (() => {
                             if (qPatient.prescription_id) {
-                              const direct = offlineRxList.find(rx => rx.id === qPatient.prescription_id);
+                              const direct = (offlineRxList || []).find(rx => rx.id === qPatient.prescription_id);
                               if (direct) return direct;
                             }
-                            const byQueueId = offlineRxList.find(rx => rx.queuePatientId === qPatient.id);
+                            const byQueueId = (offlineRxList || []).find(rx => rx.queuePatientId === qPatient.id);
                             if (byQueueId) return byQueueId;
 
-                            // Match ONLY prescriptions created TODAY
+                            // Match ONLY prescriptions created TODAY (never past visits from earlier dates)
                             const todayStr = getLocalDateStr();
-                            const todayMatches = offlineRxList.filter(rx => {
+                            const todayMatches = (offlineRxList || []).filter(rx => {
                               const rxDate = rx.consultDate ? rx.consultDate.split('T')[0] : (rx.createdAt ? rx.createdAt.split('T')[0] : '');
                               if (rxDate !== todayStr) return false;
 
@@ -5408,7 +5437,21 @@ export default function App() {
                             });
 
                             return todayMatches[0] || null;
-                          })() : null;
+                          })();
+
+                          // A queue patient is done if:
+                          // - Their status is explicitly COMPLETED/CONSULTED, OR
+                          // - They have an attached prescription_id, OR
+                          // - A prescription was saved for THIS patient TODAY!
+                          // (Active in-progress patient 'isCurrent' is never marked done until saved)
+                          const isDone = !isCurrent && (
+                            qPatient.status === 'COMPLETED' || 
+                            qPatient.status === 'CONSULTED' ||
+                            Boolean(qPatient.prescription_id) ||
+                            Boolean(matchingTodayRx)
+                          );
+
+                          const matchingRx = isDone ? matchingTodayRx : null;
 
                           return (
                             <div
