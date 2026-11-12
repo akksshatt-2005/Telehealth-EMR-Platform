@@ -1252,6 +1252,23 @@ export default function App() {
       return [];
     }
   }, [medicinesList, tempMed?.name]);
+
+  // Memoized filtered medicines for inline medicine editing autocomplete
+  const filteredEditMeds = useMemo(() => {
+    try {
+      if (!editingOfflineMed?.name || typeof editingOfflineMed.name !== 'string' || !editingOfflineMed.name.trim()) return [];
+      const q = editingOfflineMed.name.trim().toLowerCase();
+      if (!q) return [];
+      return (medicinesList || []).filter(m => {
+        if (!m || typeof m !== 'object') return false;
+        const mName = typeof m.name === 'string' ? m.name.toLowerCase() : '';
+        const mComp = typeof m.composition === 'string' ? m.composition.toLowerCase() : '';
+        return (mName && mName.includes(q)) || (mComp && mComp.includes(q));
+      }).slice(0, 25);
+    } catch (err) {
+      return [];
+    }
+  }, [medicinesList, editingOfflineMed?.name]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('prescriptions'); // 'prescriptions' or 'inventory'
   const [newMedForm, setNewMedForm] = useState({ name: '', composition: '', dosage: '' });
@@ -1261,6 +1278,7 @@ export default function App() {
   const [editingMedDosage, setEditingMedDosage] = useState('');
   const [editingOfflineMedIndex, setEditingOfflineMedIndex] = useState(null);
   const [editingOfflineMed, setEditingOfflineMed] = useState({ name: '', composition: '', dosage: '', frequency: '' });
+  const [showEditMedDropdown, setShowEditMedDropdown] = useState(false);
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
   const [fontSearchQuery, setFontSearchQuery] = useState('');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
@@ -3225,6 +3243,7 @@ export default function App() {
       dosage: target.dosage || '',
       frequency: target.frequency || ''
     });
+    setShowEditMedDropdown(false);
   };
 
   // Save changes to an edited medicine
@@ -3247,6 +3266,7 @@ export default function App() {
     });
     setEditingOfflineMedIndex(null);
     setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
+    setShowEditMedDropdown(false);
 
     // Auto-save/update edited medicine in database if token exists
     if (token) {
@@ -3292,6 +3312,7 @@ export default function App() {
   const cancelEditOfflineMed = () => {
     setEditingOfflineMedIndex(null);
     setEditingOfflineMed({ name: '', composition: '', dosage: '', frequency: '' });
+    setShowEditMedDropdown(false);
   };
 
   // Toggle accordion card in previous prescriptions history
@@ -6658,7 +6679,13 @@ export default function App() {
                       key={pill.label}
                       type="button"
                       className="rx-chip"
-                      onClick={() => setTempMed(prev => ({ ...prev, frequency: pill.val }))}
+                      onClick={() => {
+                        if (editingOfflineMedIndex !== null) {
+                          setEditingOfflineMed(prev => ({ ...prev, frequency: pill.val }));
+                        } else {
+                          setTempMed(prev => ({ ...prev, frequency: pill.val }));
+                        }
+                      }}
                     >
                       {pill.label}
                     </button>
@@ -6667,7 +6694,7 @@ export default function App() {
 
                 {/* Added Medicines Table */}
                 {offlineForm.medications.length > 0 && (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'visible' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
@@ -6684,16 +6711,77 @@ export default function App() {
                           if (isEditing) {
                             return (
                               <tr key={idx} style={{ backgroundColor: '#f0fdfa', borderBottom: '2px solid #0f766e' }}>
-                                <td style={{ padding: '0.4rem 0.5rem' }}>
-                                  <input
-                                    type="text"
-                                    className="rx-input"
-                                    value={editingOfflineMed.name}
-                                    onChange={e => setEditingOfflineMed(prev => ({ ...prev, name: e.target.value }))}
-                                    style={{ padding: '0.25rem 0.45rem', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem', width: '100%' }}
-                                    placeholder="Medicine Name"
-                                    autoFocus
-                                  />
+                                <td style={{ padding: '0.4rem 0.5rem', position: 'relative' }}>
+                                  <div style={{ position: 'relative' }}>
+                                    <input
+                                      type="text"
+                                      className="rx-input"
+                                      value={editingOfflineMed.name}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setEditingOfflineMed(prev => ({
+                                          ...prev,
+                                          name: val,
+                                          // Auto-clear composition if medicine name is removed
+                                          composition: val.trim() === '' ? '' : prev.composition
+                                        }));
+                                        setShowEditMedDropdown(true);
+                                      }}
+                                      onFocus={() => setShowEditMedDropdown(true)}
+                                      onBlur={() => {
+                                        setTimeout(() => setShowEditMedDropdown(false), 250);
+                                      }}
+                                      style={{ padding: '0.25rem 0.45rem', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem', width: '100%' }}
+                                      placeholder="Medicine Name"
+                                      autoFocus
+                                    />
+                                    {/* Medicine Inventory Autocomplete Dropdown */}
+                                    {Boolean(showEditMedDropdown && editingOfflineMed.name && filteredEditMeds.length > 0) && (
+                                      <div
+                                        style={{
+                                          position: 'absolute',
+                                          top: '100%',
+                                          left: 0,
+                                          right: 0,
+                                          minWidth: '260px',
+                                          backgroundColor: '#ffffff',
+                                          border: '1.5px solid #0f766e',
+                                          borderRadius: '6px',
+                                          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                          zIndex: 99999,
+                                          maxHeight: '190px',
+                                          overflowY: 'auto'
+                                        }}
+                                      >
+                                        {filteredEditMeds.map((medItem, mIdx) => (
+                                          <div
+                                            key={medItem.id || mIdx}
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              setEditingOfflineMed(prev => ({
+                                                ...prev,
+                                                name: medItem.name,
+                                                composition: medItem.composition || '',
+                                                dosage: medItem.dosage || prev.dosage || '1 Tab',
+                                                frequency: medItem.timing || prev.frequency || '1-0-0 सुबह नाश्ते के बाद'
+                                              }));
+                                              setShowEditMedDropdown(false);
+                                            }}
+                                            style={{ padding: '0.45rem 0.65rem', cursor: 'pointer', fontSize: '0.8rem', borderBottom: '1px solid #f1f5f9' }}
+                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0fdfa'}
+                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                          >
+                                            <strong>{medItem.name}</strong>
+                                            {medItem.composition && (
+                                              <span style={{ color: '#b91c1c', fontSize: '0.72rem', marginLeft: '0.4rem', fontStyle: 'italic' }}>
+                                                ({medItem.composition})
+                                              </span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                   <input
                                     type="text"
                                     className="rx-input"
