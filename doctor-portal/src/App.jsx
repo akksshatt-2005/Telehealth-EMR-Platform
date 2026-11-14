@@ -23,6 +23,52 @@ const formatPrintDate = (dateStr) => {
   return dateStr;
 };
 
+const getFollowUpRelativeDays = (followUpStr, consultDateStr) => {
+  if (!followUpStr) return '';
+  try {
+    const baseStr = consultDateStr ? String(consultDateStr).split('T')[0] : getLocalDateStr();
+    const [bY, bM, bD] = baseStr.split('-').map(Number);
+    const targetStr = String(followUpStr).split('T')[0];
+    const [tY, tM, tD] = targetStr.split('-').map(Number);
+    if (!bY || !bM || !bD || !tY || !tM || !tD) return '';
+    
+    const baseUtc = Date.UTC(bY, bM - 1, bD);
+    const targetUtc = Date.UTC(tY, tM - 1, tD);
+    const diffDays = Math.round((targetUtc - baseUtc) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Follow up Today';
+    if (diffDays === 1) return 'Follow up Tomorrow (1 day)';
+    if (diffDays > 1) {
+      if (diffDays % 7 === 0) {
+        const weeks = diffDays / 7;
+        return `Follow up in ${diffDays} days (${weeks} ${weeks === 1 ? 'week' : 'weeks'})`;
+      }
+      if (diffDays === 30 || diffDays === 31) {
+        return `Follow up in 1 month (${diffDays} days)`;
+      }
+      return `Follow up in ${diffDays} days`;
+    }
+    if (diffDays < 0) {
+      return `${Math.abs(diffDays)} days ago`;
+    }
+    return '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const addDaysToConsultDate = (days, consultDateStr) => {
+  try {
+    const baseStr = consultDateStr ? String(consultDateStr).split('T')[0] : getLocalDateStr();
+    const [yr, mo, da] = baseStr.split('-').map(Number);
+    const d = new Date(yr, mo - 1, da);
+    d.setDate(d.getDate() + days);
+    return getLocalDateStr(d);
+  } catch (e) {
+    return '';
+  }
+};
+
 const formatBP = (val) => {
   if (!val || !String(val).trim()) return '';
   const trimmed = String(val).trim();
@@ -7006,14 +7052,95 @@ export default function App() {
                     style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: '0.84rem', color: '#713f12', resize: 'vertical', fontWeight: 600 }}
                   />
                 </div>
-                <div className="rx-card">
-                  <span className="rx-card-label">NEXT FOLLOW-UP</span>
-                  <input 
-                    type="date"
-                    className="rx-input"
-                    value={offlineForm.followUpDate}
-                    onChange={e => setOfflineForm(prev => ({ ...prev, followUpDate: e.target.value }))}
-                  />
+                <div className="rx-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span className="rx-card-label" style={{ marginBottom: 0 }}>NEXT FOLLOW-UP</span>
+                      {offlineForm.followUpDate && (
+                        <button 
+                          type="button" 
+                          onClick={() => setOfflineForm(prev => ({ ...prev, followUpDate: '' }))}
+                          style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.72rem', cursor: 'pointer', padding: '0.1rem 0.45rem', fontWeight: 700, borderRadius: '4px' }}
+                          title="Clear follow-up date"
+                        >
+                          ✕ Clear
+                        </button>
+                      )}
+                    </div>
+                    
+                    <input 
+                      type="date"
+                      className="rx-input"
+                      value={offlineForm.followUpDate}
+                      onChange={e => setOfflineForm(prev => ({ ...prev, followUpDate: e.target.value }))}
+                      style={{ fontWeight: 700 }}
+                    />
+
+                    {offlineForm.followUpDate && (
+                      <div style={{ 
+                        marginTop: '0.45rem', 
+                        padding: '0.35rem 0.6rem', 
+                        backgroundColor: '#ecfdf5', 
+                        border: '1.5px solid #6ee7b7', 
+                        borderRadius: '6px', 
+                        fontSize: '0.82rem', 
+                        fontWeight: 800, 
+                        color: '#065f46',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.35rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>🗓️</span>
+                          <span>{getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate) || 'Follow-up Set'}</span>
+                        </div>
+                        <span style={{ fontSize: '0.76rem', color: '#047857', fontWeight: 700 }}>
+                          {formatPrintDate(offlineForm.followUpDate)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick preset chips */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    {[
+                      { label: '+3 Days', days: 3 },
+                      { label: '+5 Days', days: 5 },
+                      { label: '+7 Days', days: 7 },
+                      { label: '+10 Days', days: 10 },
+                      { label: '+14 Days (2 Wks)', days: 14 },
+                      { label: '+21 Days (3 Wks)', days: 21 },
+                      { label: '+1 Month', days: 30 },
+                      { label: '+2 Months', days: 60 },
+                    ].map(preset => {
+                      const computedDate = addDaysToConsultDate(preset.days, offlineForm.consultDate);
+                      const isSelected = offlineForm.followUpDate === computedDate;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setOfflineForm(prev => ({ ...prev, followUpDate: computedDate }));
+                          }}
+                          style={{
+                            padding: '0.22rem 0.5rem',
+                            borderRadius: '5px',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            border: isSelected ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                            backgroundColor: isSelected ? '#d1fae5' : '#ffffff',
+                            color: isSelected ? '#065f46' : '#334155',
+                            cursor: 'pointer',
+                            boxShadow: isSelected ? '0 1px 3px rgba(5,150,105,0.2)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </form>
@@ -7319,11 +7446,33 @@ export default function App() {
                                 boxSizing: 'border-box'
                               }}>
                                 {offlineForm.advice && String(offlineForm.advice).trim() && (
-                                  <div>{offlineForm.advice}</div>
+                                  <div style={{ fontSize: '0.94em', color: '#064e3b', marginBottom: offlineForm.followUpDate ? '0.45rem' : '0' }}>
+                                    {offlineForm.advice}
+                                  </div>
                                 )}
                                 {offlineForm.followUpDate && (
-                                  <div style={{ marginTop: '0.2rem', color: '#047857', fontSize: '0.9em' }}>
-                                    Next Follow-up Date: {formatPrintDate(offlineForm.followUpDate)}
+                                  <div style={{ 
+                                    marginTop: (offlineForm.advice && String(offlineForm.advice).trim()) ? '0.4rem' : '0', 
+                                    paddingTop: (offlineForm.advice && String(offlineForm.advice).trim()) ? '0.35rem' : '0',
+                                    borderTop: (offlineForm.advice && String(offlineForm.advice).trim()) ? '1.5px dashed #a7f3d0' : 'none',
+                                    color: '#065f46', 
+                                    fontSize: '1.08em', 
+                                    fontWeight: 800, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '0.45rem', 
+                                    flexWrap: 'wrap',
+                                    letterSpacing: '0.01em'
+                                  }}>
+                                    <span style={{ fontSize: '1.2em' }}>🗓️</span>
+                                    <span>
+                                      Next Follow-up Date: <strong style={{ color: '#047857' }}>{formatPrintDate(offlineForm.followUpDate)}</strong>
+                                      {getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate) && (
+                                        <span style={{ marginLeft: '0.45rem', color: '#059669', fontWeight: 800 }}>
+                                          ({getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate)})
+                                        </span>
+                                      )}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -9125,13 +9274,20 @@ export default function App() {
                         </div>
 
                         {/* General Advice and Follow-up Footer */}
-                        {prx.advice && (
-                          <div style={{ backgroundColor: '#ecfdf5', border: '1.5px solid #a7f3d0', borderLeft: '4px solid #059669', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.76rem', color: '#064e3b', lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                            <strong>General Advice:</strong> {prx.advice}
+                        {(prx.advice || prx.followUpDate) && (
+                          <div style={{ backgroundColor: '#ecfdf5', border: '1.5px solid #a7f3d0', borderLeft: '4px solid #059669', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#064e3b', lineHeight: 1.45, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                            {prx.advice && (
+                              <div><strong>General Advice:</strong> {prx.advice}</div>
+                            )}
                             {prx.followUpDate && (
-                              <span style={{ marginLeft: '1rem', color: '#047857', fontWeight: 700 }}>
-                                Follow-up: {formatPrintDate(prx.followUpDate)}
-                              </span>
+                              <div style={{ marginTop: prx.advice ? '0.35rem' : '0', color: '#047857', fontWeight: 800, fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                <span>🗓️ <strong>Next Follow-up:</strong> {formatPrintDate(prx.followUpDate)}</span>
+                                {getFollowUpRelativeDays(prx.followUpDate, prx.consultDate || prx.createdAt) && (
+                                  <span style={{ color: '#059669', fontWeight: 800 }}>
+                                    ({getFollowUpRelativeDays(prx.followUpDate, prx.consultDate || prx.createdAt)})
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
