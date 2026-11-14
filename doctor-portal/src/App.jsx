@@ -7311,32 +7311,32 @@ export default function App() {
                             (offlineForm.sugar && String(offlineForm.sugar).trim())
                           ) && (
                             <div>
-                              <div style={{ fontSize: '0.74em', fontWeight: 800, color: '#be123c', letterSpacing: '0.04em', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+                              <div style={{ fontSize: '0.80em', fontWeight: 900, color: '#be123c', letterSpacing: '0.04em', marginBottom: '0.22rem', textTransform: 'uppercase' }}>
                                 VITALS
                               </div>
-                              <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', borderLeft: '5px solid #e11d48', padding: '0.45rem 0.65rem', fontSize: '0.82em', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: '8px', borderLeft: '5px solid #e11d48', padding: '0.55rem 0.75rem', fontSize: '0.92em', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                 {offlineForm.bp && String(offlineForm.bp).trim() && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD PRESSURE</span>
-                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatBP(offlineForm.bp)}</span>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.84em', letterSpacing: '0.02em' }}>BLOOD PRESSURE</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.94em' }}>{formatBP(offlineForm.bp)}</span>
                                   </div>
                                 )}
                                 {offlineForm.pulse && String(offlineForm.pulse).trim() && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>PULSE RATE</span>
-                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{formatPulse(offlineForm.pulse)}</span>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.84em', letterSpacing: '0.02em' }}>PULSE RATE</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.94em' }}>{formatPulse(offlineForm.pulse)}</span>
                                   </div>
                                 )}
                                 {offlineForm.weight && String(offlineForm.weight).trim() && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>WEIGHT</span>
-                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`}</span>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.84em', letterSpacing: '0.02em' }}>WEIGHT</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.94em' }}>{String(offlineForm.weight).includes('kg') ? offlineForm.weight : `${offlineForm.weight} kg`}</span>
                                   </div>
                                 )}
                                 {offlineForm.sugar && String(offlineForm.sugar).trim() && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.76em', letterSpacing: '0.03em' }}>BLOOD SUGAR</span>
-                                    <span style={{ fontWeight: 800, color: '#0f172a' }}>{String(offlineForm.sugar).includes('mg') ? offlineForm.sugar : `${offlineForm.sugar} mg/dL`}</span>
+                                    <span style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.84em', letterSpacing: '0.02em' }}>BLOOD SUGAR</span>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.94em' }}>{String(offlineForm.sugar).includes('mg') ? offlineForm.sugar : `${offlineForm.sugar} mg/dL`}</span>
                                   </div>
                                 )}
                               </div>
