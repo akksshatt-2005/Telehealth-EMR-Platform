@@ -3953,7 +3953,18 @@ export default function App() {
       }
 
 
-      // 9. Reset / Clear Form (Alt+R)
+      // 9. Reset / Clear Form (Alt+R) & New Prescription (Alt+N)
+      if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        if (offlineForm.patientName || offlineForm.medications.length > 0) {
+          if (!window.confirm('Start a new prescription? Current prescription details will be cleared.')) {
+            return;
+          }
+        }
+        resetOfflineForm();
+        return;
+      }
+
       if (e.altKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
         if (window.confirm('Reset form and start a fresh prescription?')) {
@@ -6321,7 +6332,37 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (offlineForm.patientName || offlineForm.medications.length > 0) {
+                        if (!window.confirm('Start a new prescription? Current prescription details will be cleared.')) {
+                          return;
+                        }
+                      }
+                      resetOfflineForm();
+                    }}
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      backgroundColor: '#f0fdfa',
+                      border: '1.5px solid #0f766e',
+                      borderRadius: '6px',
+                      color: '#0f766e',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 2px rgba(15,118,110,0.08)'
+                    }}
+                    title="Start a fresh new prescription"
+                  >
+                    <span style={{ fontSize: '0.95em', fontWeight: 900 }}>+</span>
+                    <span>New Prescription</span>
+                  </button>
                   <button
                     type="button"
                     onClick={resetOfflineForm}
