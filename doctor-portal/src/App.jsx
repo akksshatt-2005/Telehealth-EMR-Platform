@@ -7458,21 +7458,15 @@ export default function App() {
                                     color: '#065f46', 
                                     fontSize: '1.08em', 
                                     fontWeight: 800, 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '0.45rem', 
-                                    flexWrap: 'wrap',
-                                    letterSpacing: '0.01em'
+                                    letterSpacing: '0.01em',
+                                    lineHeight: 1.4
                                   }}>
-                                    <span style={{ fontSize: '1.2em' }}>🗓️</span>
-                                    <span>
-                                      Next Follow-up Date: <strong style={{ color: '#047857' }}>{formatPrintDate(offlineForm.followUpDate)}</strong>
-                                      {getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate) && (
-                                        <span style={{ marginLeft: '0.45rem', color: '#059669', fontWeight: 800 }}>
-                                          ({getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate)})
-                                        </span>
-                                      )}
-                                    </span>
+                                    Next Follow-up Date: <strong style={{ color: '#047857' }}>{formatPrintDate(offlineForm.followUpDate)}</strong>
+                                    {getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate) && (
+                                      <span style={{ marginLeft: '0.45rem', color: '#059669', fontWeight: 800 }}>
+                                        ({getFollowUpRelativeDays(offlineForm.followUpDate, offlineForm.consultDate)})
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -9281,7 +9275,7 @@ export default function App() {
                             )}
                             {prx.followUpDate && (
                               <div style={{ marginTop: prx.advice ? '0.35rem' : '0', color: '#047857', fontWeight: 800, fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                <span>🗓️ <strong>Next Follow-up:</strong> {formatPrintDate(prx.followUpDate)}</span>
+                                <span><strong>Next Follow-up:</strong> {formatPrintDate(prx.followUpDate)}</span>
                                 {getFollowUpRelativeDays(prx.followUpDate, prx.consultDate || prx.createdAt) && (
                                   <span style={{ color: '#059669', fontWeight: 800 }}>
                                     ({getFollowUpRelativeDays(prx.followUpDate, prx.consultDate || prx.createdAt)})
