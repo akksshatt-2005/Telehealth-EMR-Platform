@@ -334,50 +334,97 @@ export default function ReceptionDeskView({
 
     try {
       let currentToken = token;
-      let res = await fetch(`${API_BASE_URL}/opd/checkin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`
-        },
-        body: JSON.stringify(formData)
-      });
-      let data = await res.json();
+      // Split names if multiple entered (comma, 'and', etc.)
+      const parsePatientNames = (input) => {
+        if (!input) return [];
+        return input
+          .split(/[,;&]|\band\b|\bAnd\b|\bAND\b/)
+          .map(n => n.trim())
+          .filter(Boolean);
+      };
+      const patientNames = parsePatientNames(formData.patientName);
+      if (patientNames.length === 0) {
+        setErrorMessage('Please enter a patient name.');
+        setSubmitting(false);
+        return;
+      }
 
-      // If token expired, invalid, or forbidden, auto re-authenticate in background with receptionist creds and retry
-      if (!data.success && (res.status === 401 || res.status === 403 || data.message?.includes('Forbidden') || data.message?.includes('token'))) {
-        try {
-          const authRes = await fetch(`${API_BASE_URL}/auth/doctor/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'reception@neuroharmony.in', password: 'reception123' })
-          });
-          const authData = await authRes.json();
-          if (authData.success && authData.token) {
-            currentToken = authData.token;
-            localStorage.setItem('doc_token', currentToken);
-            res = await fetch(`${API_BASE_URL}/opd/checkin`, {
+      const created = [];
+      for (const name of patientNames) {
+        const payload = { ...formData, patientName: name };
+        let res = await fetch(`${API_BASE_URL}/opd/checkin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+        let data = await res.json();
+        // Auto re-auth if needed
+        if (!data.success && (res.status === 401 || res.status === 403 || data.message?.includes('token'))) {
+          try {
+            const authRes = await fetch(`${API_BASE_URL}/auth/doctor/login`, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentToken}`
-              },
-              body: JSON.stringify(formData)
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: 'reception@neuroharmony.in', password: 'reception123' })
             });
-            data = await res.json();
+            const authData = await authRes.json();
+            if (authData.success && authData.token) {
+              currentToken = authData.token;
+              localStorage.setItem('doc_token', currentToken);
+              res = await fetch(`${API_BASE_URL}/opd/checkin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify(payload)
+              });
+              data = await res.json();
+            }
+          } catch (authErr) {
+            console.warn('Reception checkin auto-reauth notice:', authErr);
           }
-        } catch (authErr) {
-          console.warn('Reception checkin auto-reauth notice:', authErr);
+        }
+        if (data.success) {
+          created.push(data.item);
+        } else {
+          console.error('Checkin failed for', name, data.message);
         }
       }
 
-      if (data.success) {
-        setSuccessMessage(`✅ Patient ${formData.patientName} checked in successfully! Token #${data.item?.token_number || nextTokenNumber} sent to Doctor.`);
-        if (data.item && setOpdQueue) {
-          setOpdQueue(prev => [...prev, data.item]);
-        }
-        // Reset form
+      if (created.length) {
+        setSuccessMessage(`✅ ${created.length} patient(s) checked in successfully!`);
+        if (setOpdQueue) setOpdQueue(prev => [...prev, ...created]);
+        // Reset form after all
         setFormData({
+          patientName: '',
+          patientPhone: '',
+          patientAge: '',
+          patientGender: 'Male',
+          referenceId: '',
+          bp: '',
+          pulse: '',
+          weight: '',
+          sugar: '',
+          temperature: '',
+          chiefComplaints: '',
+          privateNotes: '',
+          patientType: 'NEW',
+          feeStatus: 'PAID',
+          paymentMode: 'CASH',
+          feeAmount: '700'
+        });
+      } else {
+        setErrorMessage('No patients were checked in.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Error checking in patient(s).');
+    } finally {
+      setSubmitting(false);
+    }
           patientName: '',
           patientPhone: '',
           patientAge: '',
