@@ -332,24 +332,25 @@ export default function ReceptionDeskView({
 
     setSubmitting(true);
 
+    // Split names if multiple entered (comma, 'and', '&', ';')
+    const parsePatientNames = (input) => {
+      if (!input) return [];
+      return input
+        .split(/[,;&]|\band\b|\bAnd\b|\bAND\b/)
+        .map(n => n.trim())
+        .filter(Boolean);
+    };
+    const patientNames = parsePatientNames(formData.patientName);
+    if (patientNames.length === 0) {
+      setErrorMessage('Please enter a patient name.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       let currentToken = token;
-      // Split names if multiple entered (comma, 'and', etc.)
-      const parsePatientNames = (input) => {
-        if (!input) return [];
-        return input
-          .split(/[,;&]|\band\b|\bAnd\b|\bAND\b/)
-          .map(n => n.trim())
-          .filter(Boolean);
-      };
-      const patientNames = parsePatientNames(formData.patientName);
-      if (patientNames.length === 0) {
-        setErrorMessage('Please enter a patient name.');
-        setSubmitting(false);
-        return;
-      }
-
       const created = [];
+
       for (const name of patientNames) {
         const payload = { ...formData, patientName: name };
         let res = await fetch(`${API_BASE_URL}/opd/checkin`, {
@@ -361,7 +362,8 @@ export default function ReceptionDeskView({
           body: JSON.stringify(payload)
         });
         let data = await res.json();
-        // Auto re-auth if needed
+
+        // Auto re-auth if token expired
         if (!data.success && (res.status === 401 || res.status === 403 || data.message?.includes('token'))) {
           try {
             const authRes = await fetch(`${API_BASE_URL}/auth/doctor/login`, {
@@ -387,6 +389,7 @@ export default function ReceptionDeskView({
             console.warn('Reception checkin auto-reauth notice:', authErr);
           }
         }
+
         if (data.success) {
           created.push(data.item);
         } else {
@@ -394,43 +397,34 @@ export default function ReceptionDeskView({
         }
       }
 
-        if (created.length) {
-          setSuccessMessage(`✅ ${created.length} patient(s) checked in successfully!`);
-          if (setOpdQueue) setOpdQueue(prev => [...prev, ...created]);
-          // Reset form after all
-          setFormData({
-            patientName: '',
-            patientPhone: '',
-            patientAge: '',
-            patientGender: 'Male',
-            referenceId: '',
-            bp: '',
-            pulse: '',
-            weight: '',
-            sugar: '',
-            temperature: '',
-            chiefComplaints: '',
-            privateNotes: '',
-            patientType: 'NEW',
-            feeStatus: 'PAID',
-            paymentMode: 'CASH',
-            feeAmount: '700',
-          });
-        } else {
-          setErrorMessage('No patients were checked in.');
-        }
-    } catch (err) {
-      console.error(err);
-      setErrorMessage(err.message || 'Error checking in patient(s).');
-    } finally {
-      setSubmitting(false);
-    }
+      const resetForm = {
+        patientName: '',
+        patientPhone: '',
+        patientAge: '',
+        patientGender: 'Male',
+        referenceId: '',
+        bp: '',
+        pulse: '',
+        weight: '',
+        sugar: '',
+        temperature: '',
+        chiefComplaints: '',
+        privateNotes: '',
+        patientType: 'NEW',
+        feeStatus: 'PAID',
+        paymentMode: 'CASH',
+        feeAmount: '700',
+      };
 
+      if (created.length) {
+        setSuccessMessage(`✅ ${created.length} patient(s) checked in successfully!`);
+        if (setOpdQueue) setOpdQueue(prev => [...prev, ...created]);
+        setFormData(resetForm);
         setSearchQuery('');
         setSelectedPatientNotice(null);
         fetchOpdQueue();
       } else {
-        // Resilient local fallback so receptionist is NEVER blocked even if server is redeploying
+        // Resilient local fallback — receptionist is NEVER blocked even if server is redeploying
         const localItem = {
           id: `local-queue-${Date.now()}`,
           token_number: nextTokenNumber,
@@ -459,8 +453,7 @@ export default function ReceptionDeskView({
           localStorage.setItem('cached_opd_queue', JSON.stringify(updated));
         } catch (e) {}
         setSuccessMessage(`✅ Patient ${formData.patientName} checked in (Token #${localItem.token_number}) and sent to Doctor's cabin queue.`);
-        setFormData({
-
+        setFormData(resetForm);
         setSearchQuery('');
         setSelectedPatientNotice(null);
         fetchOpdQueue();
