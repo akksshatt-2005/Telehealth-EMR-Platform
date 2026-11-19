@@ -394,54 +394,38 @@ export default function ReceptionDeskView({
         }
       }
 
-      if (created.length) {
-        setSuccessMessage(`✅ ${created.length} patient(s) checked in successfully!`);
-        if (setOpdQueue) setOpdQueue(prev => [...prev, ...created]);
-        // Reset form after all
-        setFormData({
-          patientName: '',
-          patientPhone: '',
-          patientAge: '',
-          patientGender: 'Male',
-          referenceId: '',
-          bp: '',
-          pulse: '',
-          weight: '',
-          sugar: '',
-          temperature: '',
-          chiefComplaints: '',
-          privateNotes: '',
-          patientType: 'NEW',
-          feeStatus: 'PAID',
-          paymentMode: 'CASH',
-          feeAmount: '700'
-        });
-      } else {
-        setErrorMessage('No patients were checked in.');
-      }
+        if (created.length) {
+          setSuccessMessage(`✅ ${created.length} patient(s) checked in successfully!`);
+          if (setOpdQueue) setOpdQueue(prev => [...prev, ...created]);
+          // Reset form after all
+          setFormData({
+            patientName: '',
+            patientPhone: '',
+            patientAge: '',
+            patientGender: 'Male',
+            referenceId: '',
+            bp: '',
+            pulse: '',
+            weight: '',
+            sugar: '',
+            temperature: '',
+            chiefComplaints: '',
+            privateNotes: '',
+            patientType: 'NEW',
+            feeStatus: 'PAID',
+            paymentMode: 'CASH',
+            feeAmount: '700',
+          });
+        } else {
+          setErrorMessage('No patients were checked in.');
+        }
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || 'Error checking in patient(s).');
     } finally {
       setSubmitting(false);
     }
-          patientName: '',
-          patientPhone: '',
-          patientAge: '',
-          patientGender: 'Male',
-          referenceId: '',
-          bp: '',
-          pulse: '',
-          weight: '',
-          sugar: '',
-          temperature: '',
-          chiefComplaints: '',
-          privateNotes: '',
-          patientType: 'NEW',
-          feeStatus: 'PAID',
-          paymentMode: 'CASH',
-          feeAmount: '700'
-        });
+
         setSearchQuery('');
         setSelectedPatientNotice(null);
         fetchOpdQueue();
@@ -476,23 +460,7 @@ export default function ReceptionDeskView({
         } catch (e) {}
         setSuccessMessage(`✅ Patient ${formData.patientName} checked in (Token #${localItem.token_number}) and sent to Doctor's cabin queue.`);
         setFormData({
-          patientName: '',
-          patientPhone: '',
-          patientAge: '',
-          patientGender: 'Male',
-          referenceId: '',
-          bp: '',
-          pulse: '',
-          weight: '',
-          sugar: '',
-          temperature: '',
-          chiefComplaints: '',
-          privateNotes: '',
-          patientType: 'NEW',
-          feeStatus: 'PAID',
-          paymentMode: 'CASH',
-          feeAmount: '700'
-        });
+
         setSearchQuery('');
         setSelectedPatientNotice(null);
         fetchOpdQueue();
